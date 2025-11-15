@@ -126,6 +126,35 @@ body {
     color: var(--primary);
 }
 
+.login-footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.login-footer p {
+    margin: 8px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.login-footer p:first-child {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.login-footer a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.login-footer a:hover {
+    opacity: 0.8;
+}
+
 /* ===== BUTTONS ===== */
 button {
     font-family: inherit;

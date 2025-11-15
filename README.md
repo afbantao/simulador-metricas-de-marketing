@@ -62,21 +62,42 @@ O simulador fornece **APENAS dados brutos**. Tens de calcular todas as métricas
 
 Para cada um dos 3 produtos, a tua equipa deve decidir:
 
-### Decisões por Produto (15 decisões)
+### Decisões Básicas por Produto (5 decisões)
 1. **Preço de Venda (€)** - Afecta receita e volume de vendas
-2. **Desconto (%)**
+2. **Desconto Promocional (%)** - Aumenta vendas a curto prazo
 3. **Investimento em Marketing (€)** - Atrai novos clientes
-4. **Investimento em Fidelização (€)** - Reduz perda de clientes
-5. **Investimento em Qualidade (€)** - Melhora satisfação
+4. **Investimento em Qualidade (€)** - Melhora satisfação e reduz abandono
+5. **Comissões de Vendas (%)** - Incentiva equipa comercial
 
-### Decisões Globais (5 decisões)
-6. **Eficiência Operacional (%)** - Reduz custos variáveis
-7. **Comissões de Vendas (%)**
-8. **Prazo de Crédito (dias)**
-9. **Stock de Segurança (dias)**
-10. **Investimento em Tecnologia (€)**
+### Canais de Publicidade por Produto (5 canais)
+Distribui a % do orçamento de marketing entre:
+- **Google Ads** - Pesquisa e display
+- **Facebook Ads** - Redes sociais Facebook
+- **Instagram Ads** - Redes sociais Instagram
+- **Email Marketing** - Comunicação directa
+- **Rádio/TV** - Media tradicional
+**Total deve ser 100%**
 
-**Total: 20 decisões por trimestre**
+### Canais de Distribuição por Produto (4 canais)
+Distribui a % das vendas entre:
+- **Lojas Próprias** - Controlo total, margem máxima
+- **Retalhistas** - Parceiros comerciais
+- **E-commerce** - Vendas online
+- **Grossistas** - Volume alto, margem baixa
+**Total deve ser 100%**
+
+### Decisões Globais da Empresa (5 decisões)
+1. **Investimento em Fidelização (€)** - Programas de pontos, newsletters
+2. **Investimento em Marca Corporativa (€)** - Publicidade institucional
+3. **Investimento em Serviço ao Cliente (€)** - Call center, SAC
+4. **Prazo de Pagamento a Clientes (dias)** - Crédito concedido
+5. **Investimento em Melhoria de Processos (€)** - Formação, automação
+
+**Total: 47 decisões estratégicas por trimestre**
+- 5 básicas × 3 produtos = 15
+- 5 canais publicidade × 3 produtos = 15
+- 4 canais distribuição × 3 produtos = 12
+- 5 globais = 5
 
 ---
 

@@ -339,8 +339,20 @@ class SimulatorApp {
     }
 
     loginAdmin(password) {
-        const storedPassword = localStorage.getItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD);
-        const correctPassword = storedPassword || CONFIG.DEFAULT_ADMIN_PASSWORD;
+        const storedPasswordData = localStorage.getItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD);
+        let correctPassword = CONFIG.DEFAULT_ADMIN_PASSWORD;
+
+        if (storedPasswordData) {
+            try {
+                correctPassword = JSON.parse(storedPasswordData);
+            } catch (e) {
+                console.error('Erro ao fazer parse da password:', e);
+                correctPassword = CONFIG.DEFAULT_ADMIN_PASSWORD;
+            }
+        }
+
+        console.log('Password digitada:', password);
+        console.log('Password correta:', correctPassword);
 
         if (password !== correctPassword) {
             alert('Palavra-passe incorreta!');

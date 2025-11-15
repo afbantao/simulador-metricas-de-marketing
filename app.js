@@ -449,10 +449,17 @@ class SimulatorApp {
                     profit: Math.round(profit * 100) / 100
                 };
 
+                // Gerar timestamp histórico (3 meses atrás por cada período)
+                const monthsAgo = (CONFIG.HISTORICAL_PERIODS - p + 1) * 3;
+                const historicalDate = new Date();
+                historicalDate.setMonth(historicalDate.getMonth() - monthsAgo);
+                historicalDate.setHours(9, 0, 0, 0); // 09:00 da manhã
+
                 periods.push({
                     period: p,
                     decisions: decisions,
-                    data: data
+                    data: data,
+                    submittedAt: historicalDate.toISOString()
                 });
 
                 // Atualizar para próximo período
@@ -947,13 +954,13 @@ class SimulatorApp {
             if (hasSubmitted) {
                 submittedCount++;
                 const submission = teamData.products[0].periods.find(p => p.period === currentPeriod);
-                const submittedAt = submission.submittedAt ? new Date(submission.submittedAt) : null;
-                const timeStr = submittedAt ? submittedAt.toLocaleString('pt-PT', {
+                const submittedAt = new Date(submission.submittedAt);
+                const timeStr = submittedAt.toLocaleString('pt-PT', {
                     day: '2-digit',
                     month: '2-digit',
                     hour: '2-digit',
                     minute: '2-digit'
-                }) : 'Data desconhecida';
+                });
 
                 submissionsHTML.push(`
                     <div class="submission-item submitted">
@@ -1012,7 +1019,7 @@ class SimulatorApp {
             if (!periodData) return;
 
             const d = periodData.decisions;
-            const submittedAt = periodData.submittedAt ? new Date(periodData.submittedAt).toLocaleString('pt-PT') : 'Data desconhecida';
+            const submittedAt = new Date(periodData.submittedAt).toLocaleString('pt-PT');
 
             detailsHTML += `
                 <div class="product-decisions">

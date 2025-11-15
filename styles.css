@@ -1002,7 +1002,7 @@ button {
 }
 
 .metrics-note {
-    margin-top: 24px;
+    margin-top: 40px;
     padding: 16px;
     background: var(--bg);
     border-left: 4px solid var(--primary);

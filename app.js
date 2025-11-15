@@ -21,7 +21,8 @@ const CONFIG = {
         ADMIN_PASSWORD: 'adminPassword',
         SIMULATION_DATA: 'simulationData',
         TEAMS_DATA: 'teamsData',
-        TEAM_CODES: 'teamCodes'
+        TEAM_CODES: 'teamCodes',
+        SESSION: 'currentSession'
     },
     // Sazonalidade por trimestre e tipo de produto
     SEASONALITY: {
@@ -112,7 +113,55 @@ class SimulatorApp {
 
     init() {
         this.setupEventListeners();
+        this.loadSession(); // Restaurar sessão se existir
         this.checkInitialState();
+    }
+
+    // ===== GESTÃO DE SESSÃO =====
+    saveSession() {
+        const session = {
+            currentUser: this.currentUser,
+            isAdmin: this.isAdmin
+        };
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SESSION, JSON.stringify(session));
+    }
+
+    loadSession() {
+        try {
+            const sessionData = localStorage.getItem(CONFIG.STORAGE_KEYS.SESSION);
+            if (sessionData) {
+                const session = JSON.parse(sessionData);
+                this.currentUser = session.currentUser;
+                this.isAdmin = session.isAdmin;
+
+                // Restaurar ecrã apropriado
+                if (this.isAdmin) {
+                    this.showScreen('adminScreen');
+                    this.loadAdminPanel();
+                } else if (this.currentUser) {
+                    // Verificar se os dados da equipa existem
+                    const teamData = this.getTeamData(this.currentUser);
+                    const simData = this.getSimulationData();
+
+                    if (teamData && simData && simData.initialized) {
+                        this.showScreen('dashboardScreen');
+                        this.loadDashboard();
+                    } else {
+                        // Dados não existem, limpar sessão
+                        this.clearSession();
+                    }
+                }
+            }
+        } catch (error) {
+            // Em caso de erro, limpar sessão
+            this.clearSession();
+        }
+    }
+
+    clearSession() {
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.SESSION);
+        this.currentUser = null;
+        this.isAdmin = false;
     }
 
     // ===== FUNÇÕES AUXILIARES =====
@@ -146,8 +195,7 @@ class SimulatorApp {
     }
 
     logout() {
-        this.currentUser = null;
-        this.isAdmin = false;
+        this.clearSession();
         this.showScreen('loginScreen');
         document.getElementById('loginForm').reset();
     }
@@ -189,6 +237,7 @@ class SimulatorApp {
 
         this.currentUser = teamCode;
         this.isAdmin = false;
+        this.saveSession();
         this.showScreen('dashboardScreen');
         this.loadDashboard();
     }
@@ -203,6 +252,7 @@ class SimulatorApp {
         }
 
         this.isAdmin = true;
+        this.saveSession();
         this.showScreen('adminScreen');
         this.loadAdminPanel();
     }

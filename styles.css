@@ -1001,6 +1001,17 @@ button {
     font-family: 'Courier New', monospace;
 }
 
+.metrics-note {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--bg);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
 .decisions-form h3 {
     font-size: 16px;
     font-weight: 600;

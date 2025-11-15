@@ -1179,12 +1179,11 @@ class SimulatorApp {
 
         // Cores para cada equipa
         const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
-        let colorIndex = 0;
+        let teamIndex = 0;
 
         // Desenhar linhas
         Object.entries(profitEvolution).forEach(([teamName, profits]) => {
-            const color = colors[colorIndex % colors.length];
-            colorIndex++;
+            const color = colors[teamIndex % colors.length];
 
             let path = 'M ';
             profits.forEach((profit, i) => {
@@ -1194,13 +1193,23 @@ class SimulatorApp {
             });
 
             svg += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+            teamIndex++;
+        });
 
-            // Pontos com tooltip
+        // Desenhar pontos com tooltips (separado para ficarem por cima das linhas)
+        teamIndex = 0;
+        Object.entries(profitEvolution).forEach(([teamName, profits]) => {
+            const color = colors[teamIndex % colors.length];
+            const safeTeamId = teamIndex;
+
+            // Adicionar pequeno offset horizontal para equipas com mesmo lucro não ficarem sobrepostas
+            const offsetX = (teamIndex - Object.keys(profitEvolution).length / 2) * 1.5;
+
             profits.forEach((profit, i) => {
-                const x = padding.left + (chartWidth / (periodsCount - 1)) * i;
+                const x = padding.left + (chartWidth / (periodsCount - 1)) * i + offsetX;
                 const y = padding.top + chartHeight - ((profit - minProfit) / (maxProfit - minProfit)) * chartHeight;
                 const quarterLabel = this.getQuarterLabel(i + 1);
-                const tooltipId = `tooltip-${teamName.replace(/\s/g, '')}-${i}`;
+                const tooltipId = `tooltip-team${safeTeamId}-period${i}`;
 
                 // Círculo visível
                 svg += `<circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`;
@@ -1210,18 +1219,27 @@ class SimulatorApp {
                         onmouseenter="document.getElementById('${tooltipId}').style.display='block'"
                         onmouseleave="document.getElementById('${tooltipId}').style.display='none'"/>`;
 
-                // Tooltip
-                const tooltipX = x + 10;
-                const tooltipY = y - 10;
+                // Tooltip - ajustar posição se estiver perto das bordas
+                let tooltipX = x + 15;
+                let tooltipY = y - 60;
+                if (tooltipX + 155 > width - padding.right) {
+                    tooltipX = x - 165; // Mostrar à esquerda
+                }
+                if (tooltipY < padding.top) {
+                    tooltipY = y + 15; // Mostrar em baixo
+                }
+
                 svg += `<g id="${tooltipId}" style="display: none; pointer-events: none;">
-                    <rect x="${tooltipX}" y="${tooltipY - 45}" width="140" height="50"
-                          fill="white" stroke="${color}" stroke-width="2" rx="4" filter="url(#shadow)"/>
-                    <text x="${tooltipX + 8}" y="${tooltipY - 28}" font-size="11" font-weight="600" fill="#374151">${teamName}</text>
-                    <text x="${tooltipX + 8}" y="${tooltipY - 15}" font-size="10" fill="#6b7280">${quarterLabel}</text>
-                    <text x="${tooltipX + 8}" y="${tooltipY - 2}" font-size="12" font-weight="700"
+                    <rect x="${tooltipX}" y="${tooltipY}" width="155" height="58"
+                          fill="#ffffff" fill-opacity="1" stroke="${color}" stroke-width="2.5" rx="6" filter="url(#shadow)"/>
+                    <text x="${tooltipX + 10}" y="${tooltipY + 20}" font-size="12" font-weight="700" fill="#374151">${teamName}</text>
+                    <text x="${tooltipX + 10}" y="${tooltipY + 37}" font-size="11" fill="#6b7280">${quarterLabel}</text>
+                    <text x="${tooltipX + 10}" y="${tooltipY + 52}" font-size="13" font-weight="700"
                           fill="${profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(profit)}</text>
                 </g>`;
             });
+
+            teamIndex++;
         });
 
         // Legenda

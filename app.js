@@ -1130,7 +1130,7 @@ class SimulatorApp {
         const chartContainer = document.getElementById('profitChart');
         const width = chartContainer.clientWidth || 900;
         const height = 400;
-        const padding = { top: 30, right: 150, bottom: 50, left: 80 };
+        const padding = { top: 30, right: 150, bottom: 50, left: 100 };
         const chartWidth = width - padding.left - padding.right;
         const chartHeight = height - padding.top - padding.bottom;
 
@@ -1149,8 +1149,13 @@ class SimulatorApp {
         minProfit -= range * 0.1;
         maxProfit += range * 0.1;
 
-        // Criar SVG
-        let svg = `<svg width="${width}" height="${height}" style="background: white; border-radius: 8px;">`;
+        // Criar SVG com tooltip
+        let svg = `<svg width="${width}" height="${height}" style="background: white; border-radius: 8px; position: relative;">
+            <defs>
+                <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+                </filter>
+            </defs>`;
 
         // Grid horizontal
         const gridLines = 5;
@@ -1190,11 +1195,32 @@ class SimulatorApp {
 
             svg += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
 
-            // Pontos
+            // Pontos com tooltip
             profits.forEach((profit, i) => {
                 const x = padding.left + (chartWidth / (periodsCount - 1)) * i;
                 const y = padding.top + chartHeight - ((profit - minProfit) / (maxProfit - minProfit)) * chartHeight;
+                const quarterLabel = this.getQuarterLabel(i + 1);
+                const tooltipId = `tooltip-${teamName.replace(/\s/g, '')}-${i}`;
+
+                // Círculo visível
                 svg += `<circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`;
+
+                // Área de hover invisível maior
+                svg += `<circle cx="${x}" cy="${y}" r="12" fill="transparent" style="cursor: pointer;"
+                        onmouseenter="document.getElementById('${tooltipId}').style.display='block'"
+                        onmouseleave="document.getElementById('${tooltipId}').style.display='none'"/>`;
+
+                // Tooltip
+                const tooltipX = x + 10;
+                const tooltipY = y - 10;
+                svg += `<g id="${tooltipId}" style="display: none; pointer-events: none;">
+                    <rect x="${tooltipX}" y="${tooltipY - 45}" width="140" height="50"
+                          fill="white" stroke="${color}" stroke-width="2" rx="4" filter="url(#shadow)"/>
+                    <text x="${tooltipX + 8}" y="${tooltipY - 28}" font-size="11" font-weight="600" fill="#374151">${teamName}</text>
+                    <text x="${tooltipX + 8}" y="${tooltipY - 15}" font-size="10" fill="#6b7280">${quarterLabel}</text>
+                    <text x="${tooltipX + 8}" y="${tooltipY - 2}" font-size="12" font-weight="700"
+                          fill="${profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(profit)}</text>
+                </g>`;
             });
         });
 

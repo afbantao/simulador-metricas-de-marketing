@@ -1064,6 +1064,7 @@ class SimulatorApp {
         let yourRevenue = 0;
         let yourProfit = 0;
         let yourCustomers = 0;
+        let yourAccumulatedProfit = 0;
 
         // Dados para o gráfico: { teamName: [lucro_T1, lucro_T2, ...] }
         const profitEvolution = {};
@@ -1105,6 +1106,7 @@ class SimulatorApp {
 
             // Coletar dados de evolução para gráfico
             profitEvolution[team.name] = [];
+            let teamAccumulatedProfit = 0;
             for (let p = 0; p < periodsCount; p++) {
                 let periodProfit = 0;
                 team.products.forEach(product => {
@@ -1113,6 +1115,12 @@ class SimulatorApp {
                     }
                 });
                 profitEvolution[team.name].push(periodProfit);
+                teamAccumulatedProfit += periodProfit;
+            }
+
+            // Se for a equipa atual, guardar o lucro acumulado
+            if (code === this.currentUser) {
+                yourAccumulatedProfit = teamAccumulatedProfit;
             }
         });
 
@@ -1121,6 +1129,7 @@ class SimulatorApp {
         document.getElementById('yourRevenue').textContent = this.formatCurrency(yourRevenue);
         document.getElementById('yourProfit').textContent = this.formatCurrency(yourProfit);
         document.getElementById('yourCustomers').textContent = yourCustomers.toLocaleString('pt-PT');
+        document.getElementById('accumulatedProfit').textContent = this.formatCurrency(yourAccumulatedProfit);
 
         // Gerar gráfico
         this.renderProfitChart(profitEvolution, periodsCount);

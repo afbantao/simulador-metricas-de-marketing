@@ -891,6 +891,74 @@ button {
     overflow-x: auto;
 }
 
+/* ===== ACCUMULATED PROFIT HIGHLIGHT ===== */
+.accumulated-profit-highlight {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%);
+    border: 3px solid #f59e0b;
+    border-radius: var(--radius);
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+    animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+    }
+    50% {
+        box-shadow: 0 10px 40px rgba(245, 158, 11, 0.5);
+    }
+}
+
+.accumulated-profit-icon {
+    font-size: 72px;
+    line-height: 1;
+    animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.accumulated-profit-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.accumulated-profit-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #78350f;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.accumulated-profit-value {
+    font-size: 48px;
+    font-weight: 800;
+    color: #78350f;
+    line-height: 1;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.accumulated-profit-desc {
+    font-size: 14px;
+    color: #92400e;
+    margin: 0;
+    font-weight: 500;
+}
+
 /* ===== HISTORY ===== */
 .history-content {
     display: flex;

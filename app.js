@@ -1085,26 +1085,7 @@ class SimulatorApp {
                 teamCustomers += period.data.customerBase;
             });
 
-            const row = document.createElement('tr');
-            if (code === this.currentUser) {
-                row.classList.add('highlight');
-                yourRevenue = teamRevenue;
-                yourProfit = teamProfit;
-                yourCustomers = teamCustomers;
-            }
-
-            row.innerHTML = `
-                <td>${team.name}</td>
-                <td>${this.formatCurrency(teamRevenue)}</td>
-                <td style="${teamProfit >= 0 ? 'color: #10b981;' : 'color: #ef4444;'} font-weight: 600;">${this.formatCurrency(teamProfit)}</td>
-                <td>${teamCustomers.toLocaleString('pt-PT')}</td>
-            `;
-            tbody.appendChild(row);
-
-            totalMarketRevenue += teamRevenue;
-            totalMarketCustomers += teamCustomers;
-
-            // Coletar dados de evolução para gráfico
+            // Calcular lucro acumulado e dados para gráfico
             profitEvolution[team.name] = [];
             let teamAccumulatedProfit = 0;
             for (let p = 0; p < periodsCount; p++) {
@@ -1118,10 +1099,26 @@ class SimulatorApp {
                 teamAccumulatedProfit += periodProfit;
             }
 
-            // Se for a equipa atual, guardar o lucro acumulado
+            const row = document.createElement('tr');
             if (code === this.currentUser) {
+                row.classList.add('highlight');
+                yourRevenue = teamRevenue;
+                yourProfit = teamProfit;
+                yourCustomers = teamCustomers;
                 yourAccumulatedProfit = teamAccumulatedProfit;
             }
+
+            row.innerHTML = `
+                <td>${team.name}</td>
+                <td>${this.formatCurrency(teamRevenue)}</td>
+                <td style="${teamProfit >= 0 ? 'color: #10b981;' : 'color: #ef4444;'} font-weight: 600;">${this.formatCurrency(teamProfit)}</td>
+                <td>${teamCustomers.toLocaleString('pt-PT')}</td>
+                <td style="${teamAccumulatedProfit >= 0 ? 'color: #10b981;' : 'color: #ef4444;'} font-weight: 700; font-size: 15px;">${this.formatCurrency(teamAccumulatedProfit)}</td>
+            `;
+            tbody.appendChild(row);
+
+            totalMarketRevenue += teamRevenue;
+            totalMarketCustomers += teamCustomers;
         });
 
         document.getElementById('totalMarket').textContent = this.formatCurrency(totalMarketRevenue);

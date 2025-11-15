@@ -151,5 +151,5 @@ Consulta o separador **"Mercado"** para ver dados de todas as equipas.
 
 ---
 
-**Desenvolvido com <3 para a ESTGD**
+**Desenvolvido com 💛 para a ESTGD**
 *Versão 4.0 · 2025*

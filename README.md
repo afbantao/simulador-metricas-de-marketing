@@ -176,5 +176,5 @@ Consulta o separador **"Mercado"** para ver dados de todas as equipas.
 
 ---
 
-**Desenvolvido com 💛 para a ESTGD**
+**Desenvolvido com 💛 para a ESTGD-IPP**
 *Versão 4.0 · 2025*

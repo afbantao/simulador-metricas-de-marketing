@@ -45,6 +45,60 @@ const CONFIG = {
             midrange: { demand: 1.25, price: 1.00, churn: 0.90 },
             economic: { demand: 1.30, price: 0.98, churn: 0.95 }
         }
+    },
+    // Canais de Publicidade - Eficiência (clientes por €100 investidos)
+    AD_CHANNELS: {
+        googleAds: {
+            name: 'Google Ads',
+            efficiency: { premium: 0.045, midrange: 0.065, economic: 0.085 }
+        },
+        facebook: {
+            name: 'Facebook Ads',
+            efficiency: { premium: 0.055, midrange: 0.075, economic: 0.095 }
+        },
+        instagram: {
+            name: 'Instagram Ads',
+            efficiency: { premium: 0.065, midrange: 0.070, economic: 0.060 }
+        },
+        email: {
+            name: 'Email Marketing',
+            efficiency: { premium: 0.040, midrange: 0.050, economic: 0.055 }
+        },
+        radio: {
+            name: 'Rádio/TV',
+            efficiency: { premium: 0.035, midrange: 0.045, economic: 0.050 }
+        }
+    },
+    // Canais de Distribuição - Margens e características
+    DISTRIBUTION_CHANNELS: {
+        ownStores: {
+            name: 'Lojas Próprias',
+            marginMultiplier: 1.00,      // Margem base
+            volumeCapacity: 0.35,         // Máx 35% das vendas
+            shareOfWallet: 0.65,          // Clientes gastam 65%
+            costs: 0.08                   // 8% custos operacionais extra
+        },
+        retailers: {
+            name: 'Retalhistas',
+            marginMultiplier: 0.75,       // 25% comissão retalhista
+            volumeCapacity: 0.45,         // Máx 45% das vendas
+            shareOfWallet: 0.45,
+            costs: 0.03
+        },
+        ecommerce: {
+            name: 'E-commerce',
+            marginMultiplier: 0.90,       // 10% custos plataforma
+            volumeCapacity: 0.30,
+            shareOfWallet: 0.55,
+            costs: 0.05
+        },
+        wholesalers: {
+            name: 'Grossistas',
+            marginMultiplier: 0.60,       // 40% desconto grossista
+            volumeCapacity: 0.50,
+            shareOfWallet: 0.30,
+            costs: 0.02
+        }
     }
 };
 
@@ -369,75 +423,147 @@ class SimulatorApp {
                     baseCommission = 3;
                 }
 
+                // Distribuição de canais varia por período (para demonstrar diferentes estratégias)
+                const adChannelDist = {
+                    1: { googleAds: 25, facebook: 30, instagram: 20, email: 15, radio: 10 },
+                    2: { googleAds: 30, facebook: 35, instagram: 15, email: 10, radio: 10 },
+                    3: { googleAds: 20, facebook: 25, instagram: 30, email: 15, radio: 10 },
+                    4: { googleAds: 25, facebook: 20, instagram: 25, email: 20, radio: 10 },
+                    5: { googleAds: 28, facebook: 27, instagram: 22, email: 13, radio: 10 }
+                };
+
+                const distChannelDist = {
+                    1: { ownStores: 30, retailers: 40, ecommerce: 20, wholesalers: 10 },
+                    2: { ownStores: 25, retailers: 35, ecommerce: 30, wholesalers: 10 },
+                    3: { ownStores: 35, retailers: 30, ecommerce: 25, wholesalers: 10 },
+                    4: { ownStores: 28, retailers: 37, ecommerce: 25, wholesalers: 10 },
+                    5: { ownStores: 30, retailers: 35, ecommerce: 25, wholesalers: 10 }
+                };
+
                 const decisions = {
                     price: profile.basePrice,
                     discount: Math.round(baseDiscount * strategy.discount * 10) / 10,
                     marketingInvestment: Math.round(baseMarketing * strategy.marketing),
                     qualityInvestment: Math.round(baseQuality * strategy.quality),
-                    salesCommission: Math.round(baseCommission * strategy.commission * 10) / 10
+                    salesCommission: Math.round(baseCommission * strategy.commission * 10) / 10,
+                    adChannels: adChannelDist[p],
+                    distributionChannels: distChannelDist[p]
                 };
 
                 // === SAZONALIDADE ===
                 const quarter = ((p - 1) % 4) + 1;
                 const seasonality = CONFIG.SEASONALITY[quarter][product.type];
 
-                // === CÁLCULO DE CLIENTES COM IMPACTO DAS DECISÕES E SAZONALIDADE ===
+                // === CANAIS DE PUBLICIDADE - Calcular clientes por canal ===
+                const adChannelPerformance = {};
+                let totalNewCustomers = 0;
 
-                // Marketing traz novos clientes (mais marketing = mais clientes)
-                const marketingEfficiency = product.id === 'produtoA' ? 0.025 :
-                                           product.id === 'produtoB' ? 0.035 : 0.045;
-                const newCustomers = Math.round(decisions.marketingInvestment * marketingEfficiency * (1 + p * 0.1) * seasonality.demand);
+                Object.keys(CONFIG.AD_CHANNELS).forEach(channelId => {
+                    const channel = CONFIG.AD_CHANNELS[channelId];
+                    const channelPercentage = decisions.adChannels[channelId] / 100;
+                    const channelInvestment = decisions.marketingInvestment * channelPercentage;
 
-                // Qualidade reduz abandono (mais qualidade = menos perdidos)
+                    const efficiency = channel.efficiency[product.type];
+                    const qualityBonus = 1 + (decisions.qualityInvestment / 80000) * 0.15;
+
+                    const customersAcquired = Math.round(
+                        channelInvestment * efficiency * qualityBonus * seasonality.demand * (1 + p * 0.08)
+                    );
+
+                    totalNewCustomers += customersAcquired;
+
+                    adChannelPerformance[channelId] = {
+                        investment: Math.round(channelInvestment * 100) / 100,
+                        customersAcquired: customersAcquired,
+                        cac: customersAcquired > 0 ? Math.round((channelInvestment / customersAcquired) * 100) / 100 : 0
+                    };
+                });
+
+                // === CHURN ===
                 const baseChurnRate = product.id === 'produtoA' ? 0.08 :
                                      product.id === 'produtoB' ? 0.12 : 0.15;
                 const qualityImpact = Math.min(decisions.qualityInvestment / 50000, 1);
                 const churnRate = Math.max(0.04, (baseChurnRate - (qualityImpact * 0.06)) * seasonality.churn);
                 const lostCustomers = Math.round(previousCustomers * churnRate);
 
-                const customerBase = previousCustomers + newCustomers - lostCustomers;
+                const customerBase = previousCustomers + totalNewCustomers - lostCustomers;
                 const retainedCustomers = previousCustomers - lostCustomers;
 
-                // === CÁLCULO DE VENDAS COM SAZONALIDADE ===
+                // === VENDAS BASE ===
+                const basePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
+                const priceImpact = Math.max(0.7, 1 - (decisions.discount / 100) * 0.5);
+                const qualityImprovement = 1 + (decisions.qualityInvestment / 40000) * 0.15;
+                const baseUnitsSold = Math.round(customerBase * priceImpact * qualityImprovement * seasonality.demand);
 
-                // Desconto aumenta vendas por cliente mas reduz margem
-                const effectivePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
-                const discountBoost = 1 + (decisions.discount / 100) * 0.8; // desconto aumenta conversão
-                const qualityBoost = 1 + (decisions.qualityInvestment / 30000) * 0.2; // qualidade aumenta vendas
-                const unitsSold = Math.round(customerBase * discountBoost * qualityBoost * seasonality.demand);
-                const revenue = unitsSold * effectivePrice;
+                // === CANAIS DE DISTRIBUIÇÃO ===
+                const distributionPerformance = {};
+                let totalRevenue = 0;
+                let totalUnitsSold = 0;
+                let totalDistributionCosts = 0;
 
-                // === CUSTOS ===
+                Object.keys(CONFIG.DISTRIBUTION_CHANNELS).forEach(channelId => {
+                    const channel = CONFIG.DISTRIBUTION_CHANNELS[channelId];
+                    const channelPercentage = decisions.distributionChannels[channelId] / 100;
 
+                    const maxUnits = baseUnitsSold * channel.volumeCapacity;
+                    const targetUnits = baseUnitsSold * channelPercentage;
+                    const unitsInChannel = Math.min(targetUnits, maxUnits);
+
+                    const effectivePrice = basePrice * channel.shareOfWallet;
+                    const channelRevenue = unitsInChannel * effectivePrice;
+                    const channelMargin = (effectivePrice - profile.baseCost) * channel.marginMultiplier;
+                    const channelCosts = channelRevenue * channel.costs;
+
+                    totalRevenue += channelRevenue;
+                    totalUnitsSold += unitsInChannel;
+                    totalDistributionCosts += channelCosts;
+
+                    distributionPerformance[channelId] = {
+                        percentage: Math.round(channelPercentage * 100 * 10) / 10,
+                        unitsSold: Math.round(unitsInChannel),
+                        revenue: Math.round(channelRevenue * 100) / 100,
+                        margin: Math.round(channelMargin * 100) / 100,
+                        operationalCosts: Math.round(channelCosts * 100) / 100,
+                        shareOfWallet: channel.shareOfWallet
+                    };
+                });
+
+                // === CUSTOS FINAIS ===
                 const unitVariableCost = profile.baseCost;
-                const variableCosts = unitsSold * unitVariableCost;
+                const variableCosts = totalUnitsSold * unitVariableCost;
                 const fixedCosts = profile.fixedCosts;
-                const salesCommissions = revenue * (decisions.salesCommission / 100);
+                const salesCommissions = totalRevenue * (decisions.salesCommission / 100);
 
-                const totalCosts = variableCosts + fixedCosts + salesCommissions;
+                const totalCosts = variableCosts + fixedCosts + salesCommissions + totalDistributionCosts;
                 const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment;
 
-                const margem = effectivePrice - unitVariableCost;
-                const profit = revenue - totalCosts - totalInvestments;
+                // Margem média ponderada
+                let weightedMargin = 0;
+                Object.values(distributionPerformance).forEach(ch => {
+                    weightedMargin += ch.margin * (ch.unitsSold / totalUnitsSold);
+                });
+
+                const profit = totalRevenue - totalCosts - totalInvestments;
 
                 const data = {
                     // Clientes
                     customerBase: customerBase,
-                    newCustomers: newCustomers,
+                    newCustomers: totalNewCustomers,
                     lostCustomers: lostCustomers,
                     previousCustomers: previousCustomers,
                     retainedCustomers: retainedCustomers,
 
-                    // Vendas e Receitas
-                    revenue: Math.round(revenue * 100) / 100,
-                    unitsSold: unitsSold,
-                    unitPrice: Math.round(effectivePrice * 100) / 100,
+                    // Vendas
+                    revenue: Math.round(totalRevenue * 100) / 100,
+                    unitsSold: totalUnitsSold,
+                    unitPrice: Math.round(basePrice * 100) / 100,
                     appliedDiscount: decisions.discount,
 
                     // Custos
                     variableCosts: Math.round(variableCosts * 100) / 100,
                     unitVariableCost: unitVariableCost,
                     fixedCosts: fixedCosts,
+                    distributionCosts: Math.round(totalDistributionCosts * 100) / 100,
 
                     // Investimentos
                     marketingCost: decisions.marketingInvestment,
@@ -445,8 +571,12 @@ class SimulatorApp {
                     salesCommissions: Math.round(salesCommissions * 100) / 100,
 
                     // Resultados
-                    margem: Math.round(margem * 100) / 100,
-                    profit: Math.round(profit * 100) / 100
+                    margem: Math.round(weightedMargin * 100) / 100,
+                    profit: Math.round(profit * 100) / 100,
+
+                    // Performance por canal
+                    adChannelPerformance: adChannelPerformance,
+                    distributionPerformance: distributionPerformance
                 };
 
                 // Gerar timestamp histórico (3 meses atrás por cada período)
@@ -512,7 +642,20 @@ class SimulatorApp {
                 discount: parseFloat(formData.get(`discount_${product.id}`)),
                 marketingInvestment: parseFloat(formData.get(`marketing_${product.id}`)),
                 qualityInvestment: parseFloat(formData.get(`quality_${product.id}`)),
-                salesCommission: parseFloat(formData.get(`commission_${product.id}`))
+                salesCommission: parseFloat(formData.get(`commission_${product.id}`)),
+                adChannels: {
+                    googleAds: parseFloat(formData.get(`adChannel_googleAds_${product.id}`)),
+                    facebook: parseFloat(formData.get(`adChannel_facebook_${product.id}`)),
+                    instagram: parseFloat(formData.get(`adChannel_instagram_${product.id}`)),
+                    email: parseFloat(formData.get(`adChannel_email_${product.id}`)),
+                    radio: parseFloat(formData.get(`adChannel_radio_${product.id}`))
+                },
+                distributionChannels: {
+                    ownStores: parseFloat(formData.get(`distChannel_ownStores_${product.id}`)),
+                    retailers: parseFloat(formData.get(`distChannel_retailers_${product.id}`)),
+                    ecommerce: parseFloat(formData.get(`distChannel_ecommerce_${product.id}`)),
+                    wholesalers: parseFloat(formData.get(`distChannel_wholesalers_${product.id}`))
+                }
             };
 
             const productData = teamData.products.find(p => p.id === product.id);
@@ -550,11 +693,34 @@ class SimulatorApp {
         // === SAZONALIDADE ===
         const seasonality = this.getSeasonalityFactors(periodNum, productType);
 
-        // === CLIENTES COM SAZONALIDADE ===
-        const marketingEfficiency = 0.035 + (decisions.qualityInvestment / 80000) * 0.02;
-        const newCustomers = Math.round(decisions.marketingInvestment * marketingEfficiency * seasonality.demand);
+        // === CANAIS DE PUBLICIDADE - Calcular clientes por canal ===
+        const adChannelPerformance = {};
+        let totalNewCustomers = 0;
 
-        // Taxa de abandono base reduzida por fidelização E serviço ao cliente
+        Object.keys(CONFIG.AD_CHANNELS).forEach(channelId => {
+            const channel = CONFIG.AD_CHANNELS[channelId];
+            const channelPercentage = decisions.adChannels[channelId] / 100;
+            const channelInvestment = decisions.marketingInvestment * channelPercentage;
+
+            // Eficiência do canal para este tipo de produto
+            const efficiency = channel.efficiency[productType];
+            const qualityBonus = 1 + (decisions.qualityInvestment / 80000) * 0.15;
+
+            // Clientes adquiridos = investimento * eficiência * qualidade * sazonalidade
+            const customersAcquired = Math.round(
+                channelInvestment * efficiency * qualityBonus * seasonality.demand
+            );
+
+            totalNewCustomers += customersAcquired;
+
+            adChannelPerformance[channelId] = {
+                investment: Math.round(channelInvestment * 100) / 100,
+                customersAcquired: customersAcquired,
+                cac: customersAcquired > 0 ? Math.round((channelInvestment / customersAcquired) * 100) / 100 : 0
+            };
+        });
+
+        // === CHURN (Abandono de clientes) ===
         const baseChurnRate = 0.12;
         const retentionImpact = Math.min(globalDecisions.retentionInvestment / 60000, 1);
         const serviceImpact = Math.min(globalDecisions.customerService / 40000, 1);
@@ -562,57 +728,112 @@ class SimulatorApp {
         const churnRate = Math.max(0.04, (baseChurnRate - churnReduction) * seasonality.churn);
         const lostCustomers = Math.round(prevCustomers * churnRate);
 
-        const customerBase = prevCustomers + newCustomers - lostCustomers;
+        const customerBase = prevCustomers + totalNewCustomers - lostCustomers;
         const retainedCustomers = prevCustomers - lostCustomers;
 
-        // === VENDAS COM SAZONALIDADE ===
-        const effectivePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
+        // === VENDAS BASE ===
+        const basePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
         const priceImpact = Math.max(0.7, 1 - (decisions.discount / 100) * 0.5);
         const qualityImpact = 1 + (decisions.qualityInvestment / 40000) * 0.15;
-        const brandImpact = 1 + (globalDecisions.brandInvestment / 50000) * 0.1; // Marca aumenta vendas
-        const unitsSold = Math.round(customerBase * priceImpact * qualityImpact * brandImpact * seasonality.demand);
-        const revenue = unitsSold * effectivePrice;
+        const brandImpact = 1 + (globalDecisions.brandInvestment / 50000) * 0.1;
 
-        // === CUSTOS ===
-        // Melhoria de processos reduz custo variável unitário
+        const baseUnitsSold = Math.round(customerBase * priceImpact * qualityImpact * brandImpact * seasonality.demand);
+
+        // === CANAIS DE DISTRIBUIÇÃO - Calcular vendas e margem por canal ===
+        const distributionPerformance = {};
+        let totalRevenue = 0;
+        let totalUnitsSold = 0;
+        let totalDistributionCosts = 0;
+
+        Object.keys(CONFIG.DISTRIBUTION_CHANNELS).forEach(channelId => {
+            const channel = CONFIG.DISTRIBUTION_CHANNELS[channelId];
+            const channelPercentage = decisions.distributionChannels[channelId] / 100;
+
+            // Unidades vendidas neste canal (limitado pela capacidade)
+            const maxUnits = baseUnitsSold * channel.volumeCapacity;
+            const targetUnits = baseUnitsSold * channelPercentage;
+            const unitsInChannel = Math.min(targetUnits, maxUnits);
+
+            // Preço efectivo com share of wallet do canal
+            const effectivePrice = basePrice * channel.shareOfWallet;
+
+            // Receita do canal
+            const channelRevenue = unitsInChannel * effectivePrice;
+
+            // Margem ajustada pelo canal (retalhistas ficam com parte)
+            const channelMargin = (effectivePrice - 35) * channel.marginMultiplier;
+
+            // Custos operacionais do canal
+            const channelCosts = channelRevenue * channel.costs;
+
+            totalRevenue += channelRevenue;
+            totalUnitsSold += unitsInChannel;
+            totalDistributionCosts += channelCosts;
+
+            distributionPerformance[channelId] = {
+                percentage: Math.round(channelPercentage * 100 * 10) / 10,
+                unitsSold: Math.round(unitsInChannel),
+                revenue: Math.round(channelRevenue * 100) / 100,
+                margin: Math.round(channelMargin * 100) / 100,
+                operationalCosts: Math.round(channelCosts * 100) / 100,
+                shareOfWallet: channel.shareOfWallet
+            };
+        });
+
+        // === CUSTOS FINAIS ===
         const processEfficiency = Math.min(globalDecisions.processImprovement / 30000, 1);
-        const costReduction = 1 - (processEfficiency * 0.25); // Até 25% de redução
+        const costReduction = 1 - (processEfficiency * 0.25);
         const unitVariableCost = 35 * costReduction;
-        const variableCosts = unitsSold * unitVariableCost;
+        const variableCosts = totalUnitsSold * unitVariableCost;
 
-        const fixedCosts = prevData.fixedCosts;
-        const salesCommissions = revenue * (decisions.salesCommission / 100);
+        const fixedCosts = prevData.fixedCosts || 45000;
+        const salesCommissions = totalRevenue * (decisions.salesCommission / 100);
 
-        const totalCosts = variableCosts + fixedCosts + salesCommissions;
+        const totalCosts = variableCosts + fixedCosts + salesCommissions + totalDistributionCosts;
         const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment +
                                 globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
                                 globalDecisions.customerService + globalDecisions.processImprovement;
 
-        const margem = effectivePrice - unitVariableCost;
-        const profit = revenue - totalCosts - totalInvestments;
+        // Margem média ponderada
+        let weightedMargin = 0;
+        Object.values(distributionPerformance).forEach(ch => {
+            weightedMargin += ch.margin * (ch.unitsSold / totalUnitsSold);
+        });
+
+        const profit = totalRevenue - totalCosts - totalInvestments;
 
         return {
+            // Clientes
             customerBase: customerBase,
-            newCustomers: newCustomers,
+            newCustomers: totalNewCustomers,
             lostCustomers: lostCustomers,
             previousCustomers: prevCustomers,
             retainedCustomers: retainedCustomers,
 
-            revenue: Math.round(revenue * 100) / 100,
-            unitsSold: unitsSold,
-            unitPrice: Math.round(effectivePrice * 100) / 100,
+            // Vendas
+            revenue: Math.round(totalRevenue * 100) / 100,
+            unitsSold: totalUnitsSold,
+            unitPrice: Math.round(basePrice * 100) / 100,
             appliedDiscount: decisions.discount,
 
+            // Custos
             variableCosts: Math.round(variableCosts * 100) / 100,
             unitVariableCost: Math.round(unitVariableCost * 100) / 100,
             fixedCosts: fixedCosts,
+            distributionCosts: Math.round(totalDistributionCosts * 100) / 100,
 
+            // Investimentos
             marketingCost: decisions.marketingInvestment,
             qualityCost: decisions.qualityInvestment,
             salesCommissions: Math.round(salesCommissions * 100) / 100,
 
-            margem: Math.round(margem * 100) / 100,
-            profit: Math.round(profit * 100) / 100
+            // Resultados
+            margem: Math.round(weightedMargin * 100) / 100,
+            profit: Math.round(profit * 100) / 100,
+
+            // Performance por canal
+            adChannelPerformance: adChannelPerformance,
+            distributionPerformance: distributionPerformance
         };
     }
 

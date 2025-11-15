@@ -110,7 +110,8 @@ Deves calcular manualmente as seguintes métricas:
 - ROA (Return on Assets)
 - ROE (Return on Equity)
 - Margem Percentual
-- Ponto Crítico (Break-Even)
+- Break-Even (em quantidade)
+- Break-Even (em valor)
 - Margem de Segurança
 - ROI de Marketing
 
@@ -126,6 +127,9 @@ Deves calcular manualmente as seguintes métricas:
 - Quota Relativa
 - Taxa de Crescimento
 - Taxa de Penetração
+
+### Outras Métricas
+És livre de estimar **outras métricas** que consideres apropriadas para a tua tomada de decisão e análise competitiva.
 
 *Consulta os cadernos de exercícios para todas as fórmulas.*
 

@@ -8,7 +8,7 @@
 
 ## 🎯 O que é?
 
-Simulador web para aplicar métricas de marketing na prática. As 9 equipas competem durante **10 trimestres** (2,5 anos: 2024-2026) e tomam decisões estratégicas com base em dados brutos.
+Simulador web para aplicar métricas de marketing na prática. As 9 equipas competem durante **5 trimestres** (os outros 5 são dados históricos) e tomam decisões estratégicas com base em dados brutos.
 
 **Cada equipa gere 3 produtos:**
 - 🏆 **Produto A** - Premium (margens altas, menor volume)
@@ -21,10 +21,10 @@ Simulador web para aplicar métricas de marketing na prática. As 9 equipas comp
 
 Cada trimestre tem comportamento de mercado específico:
 
-- ❄️ **Q1 (Jan-Mar):** Pós-Natal com vendas baixas
-- 🌸 **Q2 (Abr-Jun):** Primavera com vendas normais
-- ☀️ **Q3 (Jul-Set):** Verão e férias com vendas reduzidas
-- 🎄 **Q4 (Out-Dez):** Época natalícia com vendas altas
+- ❄️ **T1 (Jan-Mar):** Pós-Natal com vendas baixas
+- 🌸 **T2 (Abr-Jun):** Primavera com vendas normais
+- ☀️ **T3 (Jul-Set):** Verão e férias com vendas reduzidas
+- 🎄 **T4 (Out-Dez):** Época natalícia com vendas altas
 
 Cada produto reage de forma diferente à sazonalidade.
 
@@ -151,5 +151,5 @@ Consulta o separador **"Mercado"** para ver dados de todas as equipas.
 
 ---
 
-**Desenvolvido para ESTGD**
+**Desenvolvido com <3 para a ESTGD**
 *Versão 4.0 · 2025*

@@ -1325,6 +1325,115 @@ button {
     color: var(--primary);
 }
 
+/* ===== QUARTERS GRID ===== */
+.quarters-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.quarter-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.quarter-card:hover {
+    box-shadow: var(--shadow);
+}
+
+.quarter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: var(--bg);
+    border-bottom: 1.5px solid var(--border);
+}
+
+.quarter-title h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: var(--text-primary);
+}
+
+.quarter-title p {
+    font-size: 14px;
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.quarter-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-excel {
+    padding: 10px 16px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-excel:hover {
+    background: #059669;
+}
+
+.btn-toggle {
+    padding: 10px 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-toggle:hover {
+    background: var(--primary-dark);
+}
+
+.toggle-icon {
+    transition: transform 0.2s;
+}
+
+.quarter-content {
+    padding: 24px;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 /* ===== HISTORY DECISIONS DISPLAY ===== */
 .history-decisions {
     background: var(--surface);

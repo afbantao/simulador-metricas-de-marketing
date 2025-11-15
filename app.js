@@ -1106,25 +1106,82 @@ class SimulatorApp {
         const historyContent = document.getElementById('historyContent');
         historyContent.innerHTML = '';
 
-        // Agrupar por período
         const numPeriods = teamData.products[0].periods.length;
 
-        for (let p = 0; p < numPeriods; p++) {
-            const periodDiv = document.createElement('div');
-            periodDiv.className = 'history-period';
+        // Criar grid de trimestres
+        historyContent.innerHTML = '<div class="quarters-grid"></div>';
+        const quartersGrid = historyContent.querySelector('.quarters-grid');
 
+        for (let p = 0; p < numPeriods; p++) {
             const period = teamData.products[0].periods[p].period;
             const quarterLabel = this.getQuarterLabel(period);
             const quarter = this.getQuarterNumber(period);
             const isHistorical = period <= CONFIG.HISTORICAL_PERIODS;
 
-            // Descrição da sazonalidade
             const seasonalityDesc = {
                 1: '❄️ Pós-Natal (vendas baixas)',
                 2: '🌸 Primavera (vendas normais)',
                 3: '☀️ Verão (férias, vendas reduzidas)',
                 4: '🎄 Natal (vendas altas)'
             };
+
+            // Criar card do trimestre
+            const quarterCard = document.createElement('div');
+            quarterCard.className = 'quarter-card';
+            quarterCard.innerHTML = `
+                <div class="quarter-header">
+                    <div class="quarter-title">
+                        <h3>${quarterLabel}${isHistorical ? ' (Histórico)' : ''}</h3>
+                        <p>${seasonalityDesc[quarter]}</p>
+                    </div>
+                    <div class="quarter-actions">
+                        <button class="btn-excel" onclick="app.downloadQuarterExcel(${p})" title="Descarregar Excel">
+                            📥 Excel
+                        </button>
+                        <button class="btn-toggle" onclick="app.toggleQuarterDetails(${p})">
+                            <span class="toggle-icon">▼</span> Ver Dados
+                        </button>
+                    </div>
+                </div>
+                <div class="quarter-content" id="quarter-content-${p}" style="display: none;">
+                    <div class="loading">A carregar dados...</div>
+                </div>
+            `;
+
+            quartersGrid.appendChild(quarterCard);
+        }
+    }
+
+    toggleQuarterDetails(periodIndex) {
+        const content = document.getElementById(`quarter-content-${periodIndex}`);
+        const isVisible = content.style.display !== 'none';
+
+        if (isVisible) {
+            content.style.display = 'none';
+            return;
+        }
+
+        // Mostrar e carregar dados se ainda não foram carregados
+        content.style.display = 'block';
+
+        if (content.innerHTML.includes('loading')) {
+            this.loadQuarterData(periodIndex);
+        }
+    }
+
+    loadQuarterData(p) {
+        const teamData = this.getTeamData(this.currentUser);
+        const content = document.getElementById(`quarter-content-${p}`);
+
+        const period = teamData.products[0].periods[p].period;
+        const quarter = this.getQuarterNumber(period);
+
+        const seasonalityDesc = {
+            1: '❄️ Pós-Natal (vendas baixas)',
+            2: '🌸 Primavera (vendas normais)',
+            3: '☀️ Verão (férias, vendas reduzidas)',
+            4: '🎄 Natal (vendas altas)'
+        };
 
             let productsHTML = '';
             teamData.products.forEach(product => {
@@ -1268,15 +1325,124 @@ class SimulatorApp {
                 `;
             }
 
-            periodDiv.innerHTML = `
-                <h3>${quarterLabel}${isHistorical ? ' (Histórico)' : ''}</h3>
-                <p class="quarter-info">${seasonalityDesc[quarter]}</p>
+            content.innerHTML = `
                 ${productsHTML}
                 ${globalHTML}
             `;
+    }
 
-            historyContent.appendChild(periodDiv);
+    downloadQuarterExcel(p) {
+        const teamData = this.getTeamData(this.currentUser);
+        const period = teamData.products[0].periods[p].period;
+        const quarterLabel = this.getQuarterLabel(period);
+
+        // Criar workbook
+        const wb = XLSX.utils.book_new();
+
+        // Para cada produto, criar uma sheet
+        teamData.products.forEach(product => {
+            const periodData = product.periods[p];
+            const d = periodData.decisions;
+            const data = periodData.data;
+
+            const sheetData = [];
+
+            // Cabeçalho
+            sheetData.push([product.name.toUpperCase()]);
+            sheetData.push([]);
+
+            // Dados Principais
+            sheetData.push(['DADOS PRINCIPAIS']);
+            sheetData.push(['Receita', data.revenue]);
+            sheetData.push(['Lucro', data.profit]);
+            sheetData.push(['Clientes (Base)', data.customerBase]);
+            sheetData.push(['Clientes Novos', data.newCustomers]);
+            sheetData.push(['Clientes Perdidos', data.lostCustomers]);
+            sheetData.push(['Unidades Vendidas', data.unitsSold]);
+            sheetData.push(['Preço Unitário', data.unitPrice]);
+            sheetData.push([]);
+
+            // Decisões Básicas
+            sheetData.push(['DECISÕES BÁSICAS']);
+            sheetData.push(['Preço', d.price]);
+            sheetData.push(['Desconto (%)', d.discount]);
+            sheetData.push(['Investimento Marketing', d.marketingInvestment]);
+            sheetData.push(['Investimento Qualidade', d.qualityInvestment]);
+            sheetData.push(['Comissões Vendas (%)', d.salesCommission]);
+            sheetData.push([]);
+
+            // Canais de Publicidade
+            if (d.adChannels) {
+                sheetData.push(['CANAIS DE PUBLICIDADE']);
+                sheetData.push(['Canal', 'Distribuição (%)', 'Investimento (€)', 'Clientes Adquiridos']);
+
+                Object.keys(CONFIG.AD_CHANNELS).forEach(channelId => {
+                    const channelName = CONFIG.AD_CHANNELS[channelId].name;
+                    const percentage = d.adChannels[channelId];
+                    const perf = data.adChannelPerformance ? data.adChannelPerformance[channelId] : null;
+
+                    sheetData.push([
+                        channelName,
+                        percentage,
+                        perf ? perf.investment : '',
+                        perf ? perf.customersAcquired : ''
+                    ]);
+                });
+                sheetData.push([]);
+            }
+
+            // Canais de Distribuição
+            if (d.distributionChannels) {
+                sheetData.push(['CANAIS DE DISTRIBUIÇÃO']);
+                sheetData.push(['Canal', 'Distribuição (%)', 'Unidades Vendidas', 'Receita (€)']);
+
+                Object.keys(CONFIG.DISTRIBUTION_CHANNELS).forEach(channelId => {
+                    const channelName = CONFIG.DISTRIBUTION_CHANNELS[channelId].name;
+                    const percentage = d.distributionChannels[channelId];
+                    const perf = data.distributionPerformance ? data.distributionPerformance[channelId] : null;
+
+                    sheetData.push([
+                        channelName,
+                        percentage,
+                        perf ? perf.unitsSold : '',
+                        perf ? perf.revenue : ''
+                    ]);
+                });
+                sheetData.push([]);
+            }
+
+            // Custos
+            sheetData.push(['CUSTOS E INVESTIMENTOS']);
+            sheetData.push(['Custos Variáveis', data.variableCosts]);
+            sheetData.push(['Custo Variável Unitário', data.unitVariableCost]);
+            sheetData.push(['Custos Fixos', data.fixedCosts]);
+            sheetData.push(['Custos Distribuição', data.distributionCosts]);
+            sheetData.push(['Comissões Pagas', data.salesCommissions]);
+            sheetData.push([]);
+
+            const ws = XLSX.utils.aoa_to_sheet(sheetData);
+            XLSX.utils.book_append_sheet(wb, ws, product.id);
+        });
+
+        // Sheet com Decisões Globais
+        const globalDec = teamData.products[0].periods[p].globalDecisions;
+        if (globalDec) {
+            const globalData = [
+                ['DECISÕES GLOBAIS DA EMPRESA'],
+                [],
+                ['Investimento em Fidelização', globalDec.retentionInvestment],
+                ['Investimento em Marca Corporativa', globalDec.brandInvestment],
+                ['Investimento em Serviço ao Cliente', globalDec.customerService],
+                ['Prazo de Crédito (dias)', globalDec.creditDays],
+                ['Investimento em Melhoria de Processos', globalDec.processImprovement]
+            ];
+
+            const wsGlobal = XLSX.utils.aoa_to_sheet(globalData);
+            XLSX.utils.book_append_sheet(wb, wsGlobal, 'Global');
         }
+
+        // Download
+        XLSX.writeFile(wb, `${quarterLabel}_${this.currentUser}.xlsx`);
     }
 
     // ===== ADMIN =====

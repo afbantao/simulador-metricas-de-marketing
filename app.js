@@ -1634,29 +1634,31 @@ class SimulatorApp {
         const periodData = firstProduct.periods.find(p => p.period === period);
 
         if (periodData && periodData.data) {
+            const globalDec = periodData.globalDecisions;
+
             detailsHTML += `
                 <div class="product-decisions">
                     <h3>🏢 Decisões Globais da Empresa</h3>
                     <div class="decisions-grid">
                         <div class="decision-item">
                             <span>Fidelização:</span>
-                            <strong>${teamData.globalData && teamData.globalData.retentionInvestment ? this.formatCurrency(teamData.globalData.retentionInvestment) : '-'}</strong>
+                            <strong>${globalDec && globalDec.retentionInvestment ? this.formatCurrency(globalDec.retentionInvestment) : '-'}</strong>
                         </div>
                         <div class="decision-item">
                             <span>Marca Corporativa:</span>
-                            <strong>${teamData.globalData && teamData.globalData.brandInvestment ? this.formatCurrency(teamData.globalData.brandInvestment) : '-'}</strong>
+                            <strong>${globalDec && globalDec.brandInvestment ? this.formatCurrency(globalDec.brandInvestment) : '-'}</strong>
                         </div>
                         <div class="decision-item">
                             <span>Serviço ao Cliente:</span>
-                            <strong>${teamData.globalData && teamData.globalData.customerService ? this.formatCurrency(teamData.globalData.customerService) : '-'}</strong>
+                            <strong>${globalDec && globalDec.customerService ? this.formatCurrency(globalDec.customerService) : '-'}</strong>
                         </div>
                         <div class="decision-item">
                             <span>Prazo de Crédito:</span>
-                            <strong>${teamData.globalData && teamData.globalData.creditDays ? teamData.globalData.creditDays + ' dias' : '-'}</strong>
+                            <strong>${globalDec && globalDec.creditDays ? globalDec.creditDays + ' dias' : '-'}</strong>
                         </div>
                         <div class="decision-item">
                             <span>Melhoria de Processos:</span>
-                            <strong>${teamData.globalData && teamData.globalData.processImprovement ? this.formatCurrency(teamData.globalData.processImprovement) : '-'}</strong>
+                            <strong>${globalDec && globalDec.processImprovement ? this.formatCurrency(globalDec.processImprovement) : '-'}</strong>
                         </div>
                     </div>
                 </div>

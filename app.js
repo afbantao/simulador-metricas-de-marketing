@@ -440,6 +440,15 @@ class SimulatorApp {
                     5: { ownStores: 30, retailers: 35, ecommerce: 25, wholesalers: 10 }
                 };
 
+                // Decisões globais variam por período
+                const globalDecisions = {
+                    1: { retentionInvestment: 15000, brandInvestment: 8000, customerService: 5000, creditDays: 30, processImprovement: 3000 },
+                    2: { retentionInvestment: 18000, brandInvestment: 10000, customerService: 6000, creditDays: 45, processImprovement: 4000 },
+                    3: { retentionInvestment: 12000, brandInvestment: 6000, customerService: 4000, creditDays: 30, processImprovement: 2000 },
+                    4: { retentionInvestment: 20000, brandInvestment: 12000, customerService: 7000, creditDays: 60, processImprovement: 5000 },
+                    5: { retentionInvestment: 16000, brandInvestment: 9000, customerService: 5500, creditDays: 45, processImprovement: 3500 }
+                };
+
                 const decisions = {
                     price: profile.basePrice,
                     discount: Math.round(baseDiscount * strategy.discount * 10) / 10,
@@ -588,6 +597,7 @@ class SimulatorApp {
                 periods.push({
                     period: p,
                     decisions: decisions,
+                    globalDecisions: globalDecisions[p],
                     data: data,
                     submittedAt: historicalDate.toISOString()
                 });
@@ -673,6 +683,7 @@ class SimulatorApp {
             const newPeriod = {
                 period: currentPeriod,
                 decisions: productDecisions,
+                globalDecisions: globalDecisions,
                 data: newPeriodData,
                 submittedAt: new Date().toISOString()
             };
@@ -1179,26 +1190,93 @@ class SimulatorApp {
                     channelTablesHTML += `</table></div>`;
                 }
 
+                // Decisões tomadas
+                let decisionsHTML = `
+                    <div class="history-decisions">
+                        <h5 style="font-size: 14px; margin: 12px 0 8px 0; color: var(--text-secondary);">📋 Decisões Tomadas</h5>
+                        <div class="decisions-compact">
+                            <div class="decision-compact"><span>Preço:</span><strong>${this.formatCurrency(d.price)}</strong></div>
+                            <div class="decision-compact"><span>Desconto:</span><strong>${d.discount}%</strong></div>
+                            <div class="decision-compact"><span>Marketing:</span><strong>${this.formatCurrency(d.marketingInvestment)}</strong></div>
+                            <div class="decision-compact"><span>Qualidade:</span><strong>${this.formatCurrency(d.qualityInvestment)}</strong></div>
+                            <div class="decision-compact"><span>Comissões:</span><strong>${d.salesCommission}%</strong></div>
+                        </div>
+                    </div>
+                `;
+
+                // Distribuição de canais de publicidade
+                if (d.adChannels) {
+                    decisionsHTML += `
+                        <div class="channel-decisions">
+                            <h5 style="font-size: 14px; margin: 12px 0 8px 0; color: var(--text-secondary);">📢 Distribuição Publicidade</h5>
+                            <div class="channel-percentages">
+                                <span>Google Ads: ${d.adChannels.googleAds}%</span>
+                                <span>Facebook: ${d.adChannels.facebook}%</span>
+                                <span>Instagram: ${d.adChannels.instagram}%</span>
+                                <span>Email: ${d.adChannels.email}%</span>
+                                <span>Rádio/TV: ${d.adChannels.radio}%</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Distribuição de canais de distribuição
+                if (d.distributionChannels) {
+                    decisionsHTML += `
+                        <div class="channel-decisions">
+                            <h5 style="font-size: 14px; margin: 12px 0 8px 0; color: var(--text-secondary);">🏪 Distribuição Vendas</h5>
+                            <div class="channel-percentages">
+                                <span>Lojas Próprias: ${d.distributionChannels.ownStores}%</span>
+                                <span>Retalhistas: ${d.distributionChannels.retailers}%</span>
+                                <span>E-commerce: ${d.distributionChannels.ecommerce}%</span>
+                                <span>Grossistas: ${d.distributionChannels.wholesalers}%</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 productsHTML += `
                     <div class="product-history">
                         <h4>${product.name}</h4>
+
                         <div class="history-data">
                             <div class="history-item"><span>Receita</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
                             <div class="history-item"><span>Lucro</span><strong>${this.formatCurrency(data.profit)}</strong></div>
                             <div class="history-item"><span>Clientes</span><strong>${data.customerBase.toLocaleString('pt-PT')}</strong></div>
                             <div class="history-item"><span>Novos</span><strong>${data.newCustomers.toLocaleString('pt-PT')}</strong></div>
-                            <div class="history-item"><span>Preço</span><strong>${this.formatCurrency(d.price)}</strong></div>
-                            <div class="history-item"><span>Marketing</span><strong>${this.formatCurrency(d.marketingInvestment)}</strong></div>
+                            <div class="history-item"><span>Perdidos</span><strong>${data.lostCustomers.toLocaleString('pt-PT')}</strong></div>
+                            <div class="history-item"><span>Unidades</span><strong>${data.unitsSold.toLocaleString('pt-PT')}</strong></div>
                         </div>
+
+                        ${decisionsHTML}
                         ${channelTablesHTML}
                     </div>
                 `;
             });
 
+            // Decisões globais (se existirem)
+            let globalHTML = '';
+            const globalDec = teamData.products[0].periods[p].globalDecisions;
+            if (globalDec) {
+                globalHTML = `
+                    <div class="global-decisions-history" style="background: var(--surface); padding: 20px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); margin-top: 20px;">
+                        <h4 style="font-size: 16px; margin: 0 0 16px 0; color: var(--primary);">🌐 Decisões Globais da Empresa</h4>
+                        <div class="decisions-compact">
+                            <div class="decision-compact"><span>Fidelização:</span><strong>${this.formatCurrency(globalDec.retentionInvestment)}</strong></div>
+                            <div class="decision-compact"><span>Marca Corporativa:</span><strong>${this.formatCurrency(globalDec.brandInvestment)}</strong></div>
+                            <div class="decision-compact"><span>Serviço ao Cliente:</span><strong>${this.formatCurrency(globalDec.customerService)}</strong></div>
+                            <div class="decision-compact"><span>Prazo de Crédito:</span><strong>${globalDec.creditDays} dias</strong></div>
+                            <div class="decision-compact"><span>Melhoria Processos:</span><strong>${this.formatCurrency(globalDec.processImprovement)}</strong></div>
+                        </div>
+                    </div>
+                `;
+            }
+
             periodDiv.innerHTML = `
                 <h3>${quarterLabel}${isHistorical ? ' (Histórico)' : ''}</h3>
                 <p class="quarter-info">${seasonalityDesc[quarter]}</p>
                 ${productsHTML}
+                ${globalHTML}
             `;
 
             historyContent.appendChild(periodDiv);

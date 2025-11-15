@@ -1325,6 +1325,69 @@ button {
     color: var(--primary);
 }
 
+/* ===== HISTORY DECISIONS DISPLAY ===== */
+.history-decisions {
+    background: var(--surface);
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin: 12px 0;
+}
+
+.decisions-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.decision-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.decision-compact span {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.decision-compact strong {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.channel-decisions {
+    background: var(--surface);
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin: 12px 0;
+}
+
+.channel-percentages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.channel-percentages span {
+    padding: 6px 12px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
 /* ===== RESPONSIVE ADDITIONS ===== */
 @media (max-width: 768px) {
     .company-totals {

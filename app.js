@@ -523,7 +523,8 @@ class SimulatorApp {
             const newPeriod = {
                 period: currentPeriod,
                 decisions: productDecisions,
-                data: newPeriodData
+                data: newPeriodData,
+                submittedAt: new Date().toISOString()
             };
 
             productData.periods.push(newPeriod);
@@ -908,11 +909,147 @@ class SimulatorApp {
             });
 
             document.getElementById('teamCodesSetup').style.display = 'none';
+
+            // Mostrar submissões
+            this.loadSubmissionsStatus();
         } else {
             document.getElementById('adminCurrentPeriod').textContent = '-';
             document.getElementById('adminState').textContent = 'Não Inicializado';
             document.getElementById('teamCodesList').innerHTML = '<p>Inicialize a simulação primeiro</p>';
+            document.getElementById('submissionsStatus').innerHTML = '<p class="info-text">Inicialize a simulação primeiro</p>';
         }
+    }
+
+    loadSubmissionsStatus() {
+        const simData = this.getSimulationData();
+        const teamsData = this.getAllTeamsData();
+        const teamCodes = this.getTeamCodes();
+        const currentPeriod = simData.currentPeriod;
+
+        if (currentPeriod > CONFIG.TOTAL_PERIODS) {
+            document.getElementById('submissionsStatus').innerHTML = '<p class="info-text">A simulação já terminou!</p>';
+            return;
+        }
+
+        const container = document.getElementById('submissionsStatus');
+        container.innerHTML = '';
+
+        let submittedCount = 0;
+        const submissionsHTML = [];
+
+        teamCodes.forEach((code, index) => {
+            const teamData = teamsData[code];
+            if (!teamData) return;
+
+            // Verificar se submeteu para o período actual
+            const hasSubmitted = teamData.products[0].periods.some(p => p.period === currentPeriod);
+
+            if (hasSubmitted) {
+                submittedCount++;
+                const submission = teamData.products[0].periods.find(p => p.period === currentPeriod);
+                const submittedAt = submission.submittedAt ? new Date(submission.submittedAt) : null;
+                const timeStr = submittedAt ? submittedAt.toLocaleString('pt-PT', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : 'Data desconhecida';
+
+                submissionsHTML.push(`
+                    <div class="submission-item submitted">
+                        <div class="submission-header">
+                            <strong>Equipa ${index + 1}</strong>
+                            <span class="submission-status submitted">✓ Submetido</span>
+                        </div>
+                        <div class="submission-details">
+                            <span class="submission-code">${code}</span>
+                            <span class="submission-time">⏰ ${timeStr}</span>
+                        </div>
+                        <button onclick="app.showSubmissionDetails('${code}', ${currentPeriod})" class="btn-details">Ver Decisões</button>
+                    </div>
+                `);
+            } else {
+                submissionsHTML.push(`
+                    <div class="submission-item pending">
+                        <div class="submission-header">
+                            <strong>Equipa ${index + 1}</strong>
+                            <span class="submission-status pending">⏳ Pendente</span>
+                        </div>
+                        <div class="submission-details">
+                            <span class="submission-code">${code}</span>
+                        </div>
+                    </div>
+                `);
+            }
+        });
+
+        const summary = `
+            <div class="submissions-summary">
+                <h3>Estado das Submissões - ${this.getQuarterLabel(currentPeriod)}</h3>
+                <p><strong>${submittedCount}/${teamCodes.length}</strong> equipas submeteram decisões</p>
+            </div>
+        `;
+
+        container.innerHTML = summary + submissionsHTML.join('');
+    }
+
+    showSubmissionDetails(teamCode, period) {
+        const teamsData = this.getAllTeamsData();
+        const teamData = teamsData[teamCode];
+
+        if (!teamData) {
+            alert('Equipa não encontrada!');
+            return;
+        }
+
+        let detailsHTML = `<div class="modal-overlay" onclick="this.remove()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <h2>Decisões Submetidas - ${teamData.name}</h2>
+                <p class="modal-subtitle">${this.getQuarterLabel(period)}</p>`;
+
+        teamData.products.forEach(product => {
+            const periodData = product.periods.find(p => p.period === period);
+            if (!periodData) return;
+
+            const d = periodData.decisions;
+            const submittedAt = periodData.submittedAt ? new Date(periodData.submittedAt).toLocaleString('pt-PT') : 'Data desconhecida';
+
+            detailsHTML += `
+                <div class="product-decisions">
+                    <h3>${product.name}</h3>
+                    <p class="submission-timestamp">Submetido: ${submittedAt}</p>
+                    <div class="decisions-grid">
+                        <div class="decision-item">
+                            <span>Preço de Venda:</span>
+                            <strong>${d.price.toFixed(2)}€</strong>
+                        </div>
+                        <div class="decision-item">
+                            <span>Desconto:</span>
+                            <strong>${d.discount.toFixed(1)}%</strong>
+                        </div>
+                        <div class="decision-item">
+                            <span>Marketing:</span>
+                            <strong>${d.marketingInvestment.toFixed(0)}€</strong>
+                        </div>
+                        <div class="decision-item">
+                            <span>Qualidade:</span>
+                            <strong>${d.qualityInvestment.toFixed(0)}€</strong>
+                        </div>
+                        <div class="decision-item">
+                            <span>Comissões:</span>
+                            <strong>${d.salesCommission.toFixed(1)}%</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        detailsHTML += `
+                <button onclick="this.closest('.modal-overlay').remove()" class="btn-primary">Fechar</button>
+            </div>
+        </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', detailsHTML);
     }
 
     advancePeriod() {

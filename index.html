@@ -643,6 +643,36 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getDatabase, ref, set, get, child, onValue, remove } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCkHGtzOCZScGcjxMB56g5ZhSiYItLe8Rk",
+            authDomain: "simulador-metricas-marketing.firebaseapp.com",
+            databaseURL: "https://simulador-metricas-marketing-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "simulador-metricas-marketing",
+            storageBucket: "simulador-metricas-marketing.firebasestorage.app",
+            messagingSenderId: "123805453394",
+            appId: "1:123805453394:web:23f17d6737bb7b9427e38b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Exportar para uso global
+        window.firebaseDB = {
+            ref: ref,
+            set: set,
+            get: get,
+            child: child,
+            onValue: onValue,
+            remove: remove,
+            database: database
+        };
+    </script>
+
     <script src="app.js"></script>
 </body>
 </html>

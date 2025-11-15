@@ -103,6 +103,92 @@ const CONFIG = {
     }
 };
 
+// ===== FIREBASE SYNC MANAGER =====
+// Sincroniza localStorage com Firebase automaticamente
+class FirebaseSyncManager {
+    constructor() {
+        this.ready = false;
+        this.syncedKeys = [
+            CONFIG.STORAGE_KEYS.ADMIN_PASSWORD,
+            CONFIG.STORAGE_KEYS.SIMULATION_DATA,
+            CONFIG.STORAGE_KEYS.TEAMS_DATA,
+            CONFIG.STORAGE_KEYS.TEAM_CODES
+        ];
+        this.init();
+    }
+
+    async init() {
+        // Aguarda Firebase estar disponível
+        while (!window.firebaseDB) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        this.db = window.firebaseDB;
+
+        // Carrega dados do Firebase para localStorage
+        await this.loadFromFirebase();
+
+        // Configura listeners em tempo real
+        this.setupRealtimeListeners();
+
+        this.ready = true;
+        console.log('🔥 Firebase sincronizado!');
+    }
+
+    async loadFromFirebase() {
+        // Carrega todos os dados do Firebase para localStorage
+        for (const key of this.syncedKeys) {
+            try {
+                const snapshot = await this.db.get(this.db.child(this.db.ref(this.db.database), key));
+                if (snapshot.exists()) {
+                    const value = snapshot.val();
+                    localStorage.setItem(key, JSON.stringify(value));
+                }
+            } catch (error) {
+                console.error(`Erro ao carregar ${key} do Firebase:`, error);
+            }
+        }
+    }
+
+    setupRealtimeListeners() {
+        // Ouve mudanças em tempo real e atualiza localStorage
+        for (const key of this.syncedKeys) {
+            this.db.onValue(this.db.ref(this.db.database, key), (snapshot) => {
+                if (snapshot.exists()) {
+                    const value = snapshot.val();
+                    localStorage.setItem(key, JSON.stringify(value));
+                    // Notificar que houve atualização (para recarregar UI)
+                    window.dispatchEvent(new CustomEvent('firebase-update', { detail: { key, value } }));
+                }
+            });
+        }
+    }
+
+    // Salva no Firebase E localStorage
+    save(key, value) {
+        // Salva localmente (síncrono)
+        localStorage.setItem(key, JSON.stringify(value));
+
+        // Salva no Firebase (assíncrono, não bloqueia)
+        if (this.ready && this.syncedKeys.includes(key)) {
+            this.db.set(this.db.ref(this.db.database, key), value)
+                .catch(error => console.error(`Erro ao salvar ${key} no Firebase:`, error));
+        }
+    }
+
+    // Remove do Firebase E localStorage
+    remove(key) {
+        localStorage.removeItem(key);
+
+        if (this.ready && this.syncedKeys.includes(key)) {
+            this.db.remove(this.db.ref(this.db.database, key))
+                .catch(error => console.error(`Erro ao remover ${key} do Firebase:`, error));
+        }
+    }
+}
+
+// Instância global
+const firebaseSync = new FirebaseSyncManager();
+
 // ===== APLICAÇÃO PRINCIPAL =====
 class SimulatorApp {
     constructor() {
@@ -264,7 +350,7 @@ class SimulatorApp {
     }
 
     saveSimulationData(data) {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.SIMULATION_DATA, JSON.stringify(data));
+        firebaseSync.save(CONFIG.STORAGE_KEYS.SIMULATION_DATA, data);
     }
 
     getAllTeamsData() {
@@ -273,7 +359,7 @@ class SimulatorApp {
     }
 
     saveAllTeamsData(data) {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.TEAMS_DATA, JSON.stringify(data));
+        firebaseSync.save(CONFIG.STORAGE_KEYS.TEAMS_DATA, data);
     }
 
     getTeamData(teamCode) {
@@ -293,7 +379,7 @@ class SimulatorApp {
     }
 
     saveTeamCodes(codes) {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.TEAM_CODES, JSON.stringify(codes));
+        firebaseSync.save(CONFIG.STORAGE_KEYS.TEAM_CODES, codes);
     }
 
     // ===== INICIALIZAÇÃO =====
@@ -1874,9 +1960,9 @@ class SimulatorApp {
             return;
         }
 
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.SIMULATION_DATA);
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.TEAMS_DATA);
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.TEAM_CODES);
+        firebaseSync.remove(CONFIG.STORAGE_KEYS.SIMULATION_DATA);
+        firebaseSync.remove(CONFIG.STORAGE_KEYS.TEAMS_DATA);
+        firebaseSync.remove(CONFIG.STORAGE_KEYS.TEAM_CODES);
 
         alert('Simulação resetada com sucesso!');
         this.loadAdminPanel();
@@ -1888,7 +1974,7 @@ class SimulatorApp {
             return;
         }
 
-        localStorage.setItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
+        firebaseSync.save(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
         alert('Palavra-passe alterada com sucesso!');
         document.getElementById('changePasswordForm').reset();
     }
@@ -2144,7 +2230,7 @@ class SimulatorApp {
     checkInitialState() {
         const hasPassword = localStorage.getItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD);
         if (!hasPassword) {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, CONFIG.DEFAULT_ADMIN_PASSWORD);
+            firebaseSync.save(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, CONFIG.DEFAULT_ADMIN_PASSWORD);
         }
     }
 }

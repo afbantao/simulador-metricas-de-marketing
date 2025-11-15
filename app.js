@@ -1062,18 +1062,25 @@ class SimulatorApp {
         let totalMarketRevenue = 0;
         let totalMarketCustomers = 0;
         let yourRevenue = 0;
+        let yourProfit = 0;
         let yourCustomers = 0;
+
+        // Dados para o gráfico: { teamName: [lucro_T1, lucro_T2, ...] }
+        const profitEvolution = {};
+        const periodsCount = allTeams[teamCodes[0]]?.products[0]?.periods.length || 0;
 
         teamCodes.forEach(code => {
             const team = allTeams[code];
             if (!team) return;
 
             let teamRevenue = 0;
+            let teamProfit = 0;
             let teamCustomers = 0;
 
             team.products.forEach(product => {
                 const period = product.periods.find(p => p.period === currentPeriod) || product.periods[product.periods.length - 1];
                 teamRevenue += period.data.revenue;
+                teamProfit += period.data.profit;
                 teamCustomers += period.data.customerBase;
             });
 
@@ -1081,24 +1088,130 @@ class SimulatorApp {
             if (code === this.currentUser) {
                 row.classList.add('highlight');
                 yourRevenue = teamRevenue;
+                yourProfit = teamProfit;
                 yourCustomers = teamCustomers;
             }
 
             row.innerHTML = `
                 <td>${team.name}</td>
                 <td>${this.formatCurrency(teamRevenue)}</td>
+                <td style="${teamProfit >= 0 ? 'color: #10b981;' : 'color: #ef4444;'} font-weight: 600;">${this.formatCurrency(teamProfit)}</td>
                 <td>${teamCustomers.toLocaleString('pt-PT')}</td>
             `;
             tbody.appendChild(row);
 
             totalMarketRevenue += teamRevenue;
             totalMarketCustomers += teamCustomers;
+
+            // Coletar dados de evolução para gráfico
+            profitEvolution[team.name] = [];
+            for (let p = 0; p < periodsCount; p++) {
+                let periodProfit = 0;
+                team.products.forEach(product => {
+                    if (product.periods[p]) {
+                        periodProfit += product.periods[p].data.profit;
+                    }
+                });
+                profitEvolution[team.name].push(periodProfit);
+            }
         });
 
         document.getElementById('totalMarket').textContent = this.formatCurrency(totalMarketRevenue);
         document.getElementById('totalMarketCustomers').textContent = totalMarketCustomers.toLocaleString('pt-PT');
         document.getElementById('yourRevenue').textContent = this.formatCurrency(yourRevenue);
+        document.getElementById('yourProfit').textContent = this.formatCurrency(yourProfit);
         document.getElementById('yourCustomers').textContent = yourCustomers.toLocaleString('pt-PT');
+
+        // Gerar gráfico
+        this.renderProfitChart(profitEvolution, periodsCount);
+    }
+
+    renderProfitChart(profitEvolution, periodsCount) {
+        const chartContainer = document.getElementById('profitChart');
+        const width = chartContainer.clientWidth || 900;
+        const height = 400;
+        const padding = { top: 30, right: 150, bottom: 50, left: 80 };
+        const chartWidth = width - padding.left - padding.right;
+        const chartHeight = height - padding.top - padding.bottom;
+
+        // Encontrar min e max dos lucros
+        let minProfit = 0;
+        let maxProfit = 0;
+        Object.values(profitEvolution).forEach(profits => {
+            profits.forEach(p => {
+                if (p < minProfit) minProfit = p;
+                if (p > maxProfit) maxProfit = p;
+            });
+        });
+
+        // Adicionar margem
+        const range = maxProfit - minProfit;
+        minProfit -= range * 0.1;
+        maxProfit += range * 0.1;
+
+        // Criar SVG
+        let svg = `<svg width="${width}" height="${height}" style="background: white; border-radius: 8px;">`;
+
+        // Grid horizontal
+        const gridLines = 5;
+        for (let i = 0; i <= gridLines; i++) {
+            const y = padding.top + (chartHeight / gridLines) * i;
+            const value = maxProfit - ((maxProfit - minProfit) / gridLines) * i;
+
+            svg += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"
+                    stroke="#e5e7eb" stroke-width="1"/>`;
+            svg += `<text x="${padding.left - 10}" y="${y + 5}" text-anchor="end"
+                    font-size="12" fill="#6b7280">${this.formatCurrency(value)}</text>`;
+        }
+
+        // Eixo X (trimestres)
+        for (let i = 0; i < periodsCount; i++) {
+            const x = padding.left + (chartWidth / (periodsCount - 1)) * i;
+            const quarterLabel = this.getQuarterLabel(i + 1);
+            svg += `<text x="${x}" y="${height - padding.bottom + 20}" text-anchor="middle"
+                    font-size="12" fill="#374151">${quarterLabel}</text>`;
+        }
+
+        // Cores para cada equipa
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
+        let colorIndex = 0;
+
+        // Desenhar linhas
+        Object.entries(profitEvolution).forEach(([teamName, profits]) => {
+            const color = colors[colorIndex % colors.length];
+            colorIndex++;
+
+            let path = 'M ';
+            profits.forEach((profit, i) => {
+                const x = padding.left + (chartWidth / (periodsCount - 1)) * i;
+                const y = padding.top + chartHeight - ((profit - minProfit) / (maxProfit - minProfit)) * chartHeight;
+                path += `${x},${y} `;
+            });
+
+            svg += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+
+            // Pontos
+            profits.forEach((profit, i) => {
+                const x = padding.left + (chartWidth / (periodsCount - 1)) * i;
+                const y = padding.top + chartHeight - ((profit - minProfit) / (maxProfit - minProfit)) * chartHeight;
+                svg += `<circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`;
+            });
+        });
+
+        // Legenda
+        let legendY = padding.top;
+        Object.entries(profitEvolution).forEach(([teamName, profits], index) => {
+            const color = colors[index % colors.length];
+            const legendX = width - padding.right + 10;
+
+            svg += `<line x1="${legendX}" y1="${legendY}" x2="${legendX + 20}" y2="${legendY}"
+                    stroke="${color}" stroke-width="2.5"/>`;
+            svg += `<text x="${legendX + 25}" y="${legendY + 4}" font-size="12" fill="#374151">${teamName}</text>`;
+            legendY += 20;
+        });
+
+        svg += '</svg>';
+        chartContainer.innerHTML = svg;
     }
 
     loadHistoryData() {

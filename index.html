@@ -569,6 +569,7 @@
                                 <tr>
                                     <th>Equipa</th>
                                     <th>Receita Total (€)</th>
+                                    <th>Lucro Total (€)</th>
                                     <th>Clientes Totais</th>
                                 </tr>
                             </thead>
@@ -589,10 +590,20 @@
                             <span>Receita da Vossa Empresa</span>
                             <strong id="yourRevenue">-</strong>
                         </div>
+                        <div class="summary-card highlight-card">
+                            <span>Lucro da Vossa Empresa</span>
+                            <strong id="yourProfit">-</strong>
+                        </div>
                         <div class="summary-card">
                             <span>Clientes da Vossa Empresa</span>
                             <strong id="yourCustomers">-</strong>
                         </div>
+                    </div>
+
+                    <!-- Gráfico de Evolução do Lucro -->
+                    <div class="profit-chart-container">
+                        <h3>📈 Evolução do Lucro Total por Equipa</h3>
+                        <div id="profitChart" class="profit-chart"></div>
                     </div>
                 </div>
 

@@ -197,10 +197,20 @@ class SimulatorApp {
         this.init();
     }
 
-    init() {
+    async init() {
         this.setupEventListeners();
+
+        // Aguardar Firebase estar pronto
+        await this.waitForFirebase();
+
         this.loadSession(); // Restaurar sessão se existir
         this.checkInitialState();
+    }
+
+    async waitForFirebase() {
+        while (!firebaseSync.ready) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
     }
 
     // ===== GESTÃO DE SESSÃO =====
@@ -2228,9 +2238,21 @@ class SimulatorApp {
     }
 
     checkInitialState() {
-        const hasPassword = localStorage.getItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD);
-        if (!hasPassword) {
+        const passwordData = localStorage.getItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD);
+
+        // Se não existe password OU está vazia, criar a default
+        if (!passwordData) {
+            console.log('Criando password default:', CONFIG.DEFAULT_ADMIN_PASSWORD);
             firebaseSync.save(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, CONFIG.DEFAULT_ADMIN_PASSWORD);
+        } else {
+            try {
+                const password = JSON.parse(passwordData);
+                console.log('Password carregada do Firebase:', password);
+            } catch (e) {
+                // Se houver erro ao fazer parse, recriar
+                console.log('Erro ao carregar password, recriando...');
+                firebaseSync.save(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, CONFIG.DEFAULT_ADMIN_PASSWORD);
+            }
         }
     }
 }

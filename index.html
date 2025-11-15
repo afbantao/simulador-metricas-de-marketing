@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Métricas | ESTGD</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <div class="login-header">
+                <img src="logo (2).png" alt="IPP Logo" class="login-logo">
+                <h1>Simulador de Métricas de Marketing</h1>
+                <p>ESTGD · Instituto Politécnico de Portalegre</p>
+            </div>
+
+            <div class="login-box">
+                <h2>Acesso de Equipa</h2>
+                <form id="loginForm">
+                    <input type="text" id="teamCode" placeholder="Código da equipa (ex: EQUIPA01)" required autofocus>
+                    <button type="submit" class="btn-primary">Entrar</button>
+                </form>
+            </div>
+
+            <div class="admin-link">
+                <a href="#" onclick="app.showAdminLogin(); return false;">Acesso Professor</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login -->
+    <div id="adminLoginScreen" class="screen">
+        <div class="login-container">
+            <div class="login-header">
+                <img src="logo (2).png" alt="IPP Logo" class="login-logo">
+                <h1>Painel do Professor</h1>
+                <p>Acesso Restrito</p>
+            </div>
+
+            <div class="login-box">
+                <form id="adminLoginForm">
+                    <input type="password" id="adminPassword" placeholder="Palavra-passe" required autofocus>
+                    <button type="submit" class="btn-primary">Entrar</button>
+                    <button type="button" class="btn-secondary" onclick="app.backToLogin()">Voltar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="adminScreen" class="screen">
+        <div class="admin-container">
+            <div class="admin-header">
+                <img src="logo (2).png" alt="IPP" class="admin-logo">
+                <h1>Painel do Professor</h1>
+                <button onclick="app.logout()" class="btn-ghost">Sair</button>
+            </div>
+
+            <div class="admin-content">
+                <div class="admin-section">
+                    <h2>Gestão da Simulação</h2>
+                    <div class="admin-stats">
+                        <div class="stat-card">
+                            <span class="stat-label">Período Atual</span>
+                            <span class="stat-value" id="adminCurrentPeriod">-</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Estado</span>
+                            <span class="stat-value" id="adminState">-</span>
+                        </div>
+                    </div>
+                    <div class="admin-actions">
+                        <button onclick="app.showTeamCodesSetup()" class="btn-primary">Inicializar Simulação</button>
+                        <button onclick="app.advancePeriod()" class="btn-secondary">Avançar Período</button>
+                        <button onclick="app.exportAllData()" class="btn-secondary">📊 Exportar Desempenho (Excel)</button>
+                        <button onclick="app.resetSimulation()" class="btn-danger">Reset Completo</button>
+                    </div>
+                </div>
+
+                <div id="teamCodesSetup" class="admin-section" style="display: none;">
+                    <!-- Conteúdo gerado dinamicamente -->
+                </div>
+
+                <div class="admin-section">
+                    <h2>Códigos das Equipas</h2>
+                    <div class="team-codes" id="teamCodesList"></div>
+                </div>
+
+                <div class="admin-section">
+                    <h2>Alterar Palavra-passe</h2>
+                    <form id="changePasswordForm" class="password-form">
+                        <input type="password" id="newPassword" placeholder="Nova palavra-passe" required>
+                        <button type="submit" class="btn-secondary">Alterar</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                <span>© André Antão</span>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Team Dashboard -->
+    <div id="dashboardScreen" class="screen">
+        <div class="dashboard-container">
+            <!-- Header -->
+            <header class="dashboard-header">
+                <img src="logo (2).png" alt="IPP" class="dashboard-logo">
+                <div class="header-left">
+                    <h1 id="teamName">-</h1>
+                    <span class="period-badge"><span id="currentPeriod">-</span></span>
+                </div>
+                <button onclick="app.logout()" class="btn-ghost">Sair</button>
+            </header>
+
+            <!-- Navigation -->
+            <nav class="dashboard-nav">
+                <button class="nav-item active" data-view="overview" onclick="app.switchView('overview')">Visão Geral</button>
+                <button class="nav-item" data-view="decisions" onclick="app.switchView('decisions')">Decisões</button>
+                <button class="nav-item" data-view="market" onclick="app.switchView('market')">Mercado</button>
+                <button class="nav-item" data-view="history" onclick="app.switchView('history')">Histórico</button>
+            </nav>
+
+            <!-- Content -->
+            <main class="dashboard-content">
+                <!-- Overview View -->
+                <div id="overviewView" class="view active">
+                    <div class="view-header">
+                        <h2>Visão Geral da Empresa</h2>
+                        <p>Resumo dos 3 produtos e dados globais da empresa</p>
+                    </div>
+
+                    <!-- Totais da Empresa -->
+                    <div class="company-totals">
+                        <div class="total-card">
+                            <span>Receita Total</span>
+                            <strong id="totalRevenue">-</strong>
+                        </div>
+                        <div class="total-card">
+                            <span>Clientes Totais</span>
+                            <strong id="totalCustomers">-</strong>
+                        </div>
+                        <div class="total-card">
+                            <span>Lucro Total</span>
+                            <strong id="totalProfit">-</strong>
+                        </div>
+                    </div>
+
+                    <!-- Produtos -->
+                    <h3 class="section-title">Produtos</h3>
+                    <div id="productsDataContainer" class="products-grid">
+                        <!-- Produtos gerados dinamicamente -->
+                    </div>
+
+                    <!-- Balanço -->
+                    <h3 class="section-title">Balanço da Empresa</h3>
+                    <div class="data-grid">
+                        <div class="data-card">
+                            <h3>Posição Financeira</h3>
+                            <div class="data-row">
+                                <span>Ativo Total</span>
+                                <strong id="totalAssets">-</strong>
+                            </div>
+                            <div class="data-row">
+                                <span>Capitais Próprios</span>
+                                <strong id="equity">-</strong>
+                            </div>
+                            <div class="data-row">
+                                <span>Passivo Total</span>
+                                <strong id="totalLiabilities">-</strong>
+                            </div>
+                        </div>
+
+                        <div class="data-card">
+                            <h3>Dados de Contexto</h3>
+                            <div class="data-row">
+                                <span>Mercado Potencial</span>
+                                <strong>300.000 clientes</strong>
+                            </div>
+                            <div class="data-row">
+                                <span>Taxa Base Abandono</span>
+                                <strong>12%</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Métricas Guide -->
+                    <div class="metrics-guide">
+                        <h3>📊 Métricas a Calcular</h3>
+                        <p class="guide-subtitle">Use os dados dos produtos para calcular estas métricas:</p>
+                        <div class="metrics-grid-guide">
+                            <div class="metric-guide-item">
+                                <strong>Margem de Vendas Unitária</strong>
+                                <span>= Preço Unitário - Custo Variável Unitário</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Rendibilidade das Vendas</strong>
+                                <span>= (Lucro ÷ Receita) × 100</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Rendibilidade do Ativo</strong>
+                                <span>= (Lucro ÷ Ativo Total) × 100</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Rendibilidade do Capital Próprio</strong>
+                                <span>= (Lucro ÷ Capitais Próprios) × 100</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Ponto de Equilíbrio (quantidade)</strong>
+                                <span>= Custos Fixos ÷ Margem Unitária</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Ponto de Equilíbrio (valor)</strong>
+                                <span>= Ponto Equilíbrio (qtd) × Preço Unitário</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Margem de Segurança</strong>
+                                <span>= (Vendas - Ponto Equilíbrio) ÷ Vendas × 100</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Custo de Aquisição de Cliente</strong>
+                                <span>= Investimento Marketing ÷ Novos Clientes</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Taxa de Fidelização</strong>
+                                <span>= (Clientes Mantidos ÷ Base Anterior) × 100</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Taxa de Abandono</strong>
+                                <span>= (Clientes Perdidos ÷ Base Anterior) × 100</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Taxa de Penetração no Mercado</strong>
+                                <span>= (Clientes Atuais ÷ Mercado Potencial) × 100</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Taxa de Crescimento da Receita</strong>
+                                <span>= (Receita Atual - Receita Anterior) ÷ Receita Anterior × 100</span>
+                            </div>
+                            <div class="metric-guide-item">
+                                <strong>Quota de Mercado</strong>
+                                <span>= (Receita da Empresa ÷ Receita Total Mercado) × 100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Decisions View -->
+                <div id="decisionsView" class="view">
+                    <div class="view-header">
+                        <h2>Tomar Decisões</h2>
+                        <p id="decisionPeriodText"><span id="decisionPeriod">-</span></p>
+                    </div>
+
+                    <div id="decisionAlert" class="alert"></div>
+
+                    <form id="decisionsForm" class="decisions-form">
+                        <!-- Decisões por Produto -->
+                        <div class="decision-section">
+                            <h2 class="product-decision-title">💎 Produto A (Premium) - Luxo & Qualidade</h2>
+                            <p class="product-hint">Alto valor, margens elevadas, baixo volume</p>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Preço de Venda (€)</label>
+                                    <input type="number" name="price_produtoA" id="price_produtoA" step="0.01" min="1" required>
+                                    <span class="form-hint">Define o preço unitário cobrado ao cliente por este produto</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Desconto Promocional (%)</label>
+                                    <input type="number" name="discount_produtoA" id="discount_produtoA" step="any" min="0" required>
+                                    <span class="form-hint">Percentagem de desconto temporário para aumentar vendas a curto prazo</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Marketing (€)</label>
+                                    <input type="number" name="marketing_produtoA" id="marketing_produtoA" step="any" min="0" required>
+                                    <span class="form-hint">Publicidade, promoção e comunicação específica deste produto</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Qualidade (€)</label>
+                                    <input type="number" name="quality_produtoA" id="quality_produtoA" step="any" min="0" required>
+                                    <span class="form-hint">Melhorias no produto, testes, controlo qualidade, materiais premium</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Comissões de Vendas (%)</label>
+                                    <input type="number" name="commission_produtoA" id="commission_produtoA" step="any" min="0" required>
+                                    <span class="form-hint">Percentagem sobre vendas paga à equipa comercial como incentivo</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="decision-section">
+                            <h2 class="product-decision-title">📦 Produto B (Mid-Range) - Equilíbrio</h2>
+                            <p class="product-hint">Valor justo, margens equilibradas, volume médio</p>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Preço de Venda (€)</label>
+                                    <input type="number" name="price_produtoB" id="price_produtoB" step="0.01" min="1" required>
+                                    <span class="form-hint">Define o preço unitário cobrado ao cliente por este produto</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Desconto Promocional (%)</label>
+                                    <input type="number" name="discount_produtoB" id="discount_produtoB" step="any" min="0" required>
+                                    <span class="form-hint">Percentagem de desconto temporário para aumentar vendas a curto prazo</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Marketing (€)</label>
+                                    <input type="number" name="marketing_produtoB" id="marketing_produtoB" step="any" min="0" required>
+                                    <span class="form-hint">Publicidade, promoção e comunicação específica deste produto</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Qualidade (€)</label>
+                                    <input type="number" name="quality_produtoB" id="quality_produtoB" step="any" min="0" required>
+                                    <span class="form-hint">Melhorias no produto, testes, controlo qualidade, materiais premium</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Comissões de Vendas (%)</label>
+                                    <input type="number" name="commission_produtoB" id="commission_produtoB" step="any" min="0" required>
+                                    <span class="form-hint">Percentagem sobre vendas paga à equipa comercial como incentivo</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="decision-section">
+                            <h2 class="product-decision-title">🏷️ Produto C (Económico) - Volume</h2>
+                            <p class="product-hint">Preço competitivo, margens baixas, alto volume</p>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Preço de Venda (€)</label>
+                                    <input type="number" name="price_produtoC" id="price_produtoC" step="0.01" min="1" required>
+                                    <span class="form-hint">Define o preço unitário cobrado ao cliente por este produto</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Desconto Promocional (%)</label>
+                                    <input type="number" name="discount_produtoC" id="discount_produtoC" step="any" min="0" required>
+                                    <span class="form-hint">Percentagem de desconto temporário para aumentar vendas a curto prazo</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Marketing (€)</label>
+                                    <input type="number" name="marketing_produtoC" id="marketing_produtoC" step="any" min="0" required>
+                                    <span class="form-hint">Publicidade, promoção e comunicação específica deste produto</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Qualidade (€)</label>
+                                    <input type="number" name="quality_produtoC" id="quality_produtoC" step="any" min="0" required>
+                                    <span class="form-hint">Melhorias no produto, testes, controlo qualidade, materiais premium</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Comissões de Vendas (%)</label>
+                                    <input type="number" name="commission_produtoC" id="commission_produtoC" step="any" min="0" required>
+                                    <span class="form-hint">Percentagem sobre vendas paga à equipa comercial como incentivo</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Decisões Globais -->
+                        <div class="decision-section global-decisions">
+                            <h2 class="global-decision-title">🏢 Decisões Globais da Empresa</h2>
+                            <p class="product-hint">Decisões que afetam todos os produtos e a empresa como um todo</p>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Investimento em Fidelização (€)</label>
+                                    <input type="number" name="retentionInvestment" id="retentionInvestment" step="any" min="0" required>
+                                    <span class="form-hint">Programas de pontos, cartões fidelidade, newsletters, eventos - reduz abandono</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Marca Corporativa (€)</label>
+                                    <input type="number" name="brandInvestment" id="brandInvestment" step="any" min="0" required>
+                                    <span class="form-hint">Publicidade institucional, patrocínios, responsabilidade social - imagem da empresa</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Serviço ao Cliente (€)</label>
+                                    <input type="number" name="customerService" id="customerService" step="any" min="0" required>
+                                    <span class="form-hint">Call center, suporte pós-venda, garantias, SAC - melhora satisfação</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Prazo de Pagamento a Clientes (dias)</label>
+                                    <input type="number" name="creditDays" id="creditDays" min="0" required>
+                                    <span class="form-hint">Dias de crédito concedidos aos clientes - afeta fluxo de caixa e competitividade</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Investimento em Melhoria de Processos (€)</label>
+                                    <input type="number" name="processImprovement" id="processImprovement" step="any" min="0" required>
+                                    <span class="form-hint">Formação de pessoal, automação, otimização - reduz custos operacionais</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary btn-large">Submeter Decisões (20 Total)</button>
+                    </form>
+                </div>
+
+                <!-- Market View -->
+                <div id="marketView" class="view">
+                    <div class="view-header">
+                        <h2>Dados de Mercado</h2>
+                        <p>Dados agregados de todas as equipas para cálculo de quotas e análise competitiva</p>
+                    </div>
+
+                    <div class="market-table-container">
+                        <table class="market-table">
+                            <thead>
+                                <tr>
+                                    <th>Equipa</th>
+                                    <th>Receita Total (€)</th>
+                                    <th>Clientes Totais</th>
+                                </tr>
+                            </thead>
+                            <tbody id="marketTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="market-summary">
+                        <div class="summary-card">
+                            <span>Receita Total do Mercado</span>
+                            <strong id="totalMarket">-</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span>Clientes Totais do Mercado</span>
+                            <strong id="totalMarketCustomers">-</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span>Receita da Vossa Empresa</span>
+                            <strong id="yourRevenue">-</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span>Clientes da Vossa Empresa</span>
+                            <strong id="yourCustomers">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History View -->
+                <div id="historyView" class="view">
+                    <div class="view-header">
+                        <h2>Histórico</h2>
+                        <div class="export-actions">
+                            <button onclick="app.exportTeamData()" class="btn-secondary">📊 Exportar Excel</button>
+                        </div>
+                    </div>
+
+                    <div id="historyContent" class="history-content"></div>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                <span>© André Antão</span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

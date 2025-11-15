@@ -1,0 +1,24 @@
+# Ficheiros LaTeX
+*.tex
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# Ficheiros temporários
+*.tmp
+*.bak
+*~
+
+# Ficheiros de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Instruções e notas pessoais
+instruções.txt
+
+# Claude Code settings
+.claude/

@@ -1,0 +1,1231 @@
+// ===== SIMULADOR DE MÉTRICAS DE MARKETING - VERSÃO 4.0 =====
+// ESTGD - Instituto Politécnico de Portalegre
+// Professor: André Antão | Ano Letivo 2025-2026
+// Sistema com 3 produtos por equipa
+
+// ===== CONFIGURAÇÃO =====
+const CONFIG = {
+    TOTAL_PERIODS: 10,  // 5 históricos + 5 decisões
+    HISTORICAL_PERIODS: 5,
+    NUM_TEAMS: 9,
+    NUM_PRODUCTS: 3,
+    START_YEAR: 2024,
+    PRODUCTS: [
+        { id: 'produtoA', name: 'Produto A (Premium)', type: 'premium' },
+        { id: 'produtoB', name: 'Produto B (Mid-Range)', type: 'midrange' },
+        { id: 'produtoC', name: 'Produto C (Económico)', type: 'economic' }
+    ],
+    DEFAULT_ADMIN_PASSWORD: 'professor2026',
+    MARKET_POTENTIAL: 300000, // mercado total (dividido por 3 produtos)
+    STORAGE_KEYS: {
+        ADMIN_PASSWORD: 'adminPassword',
+        SIMULATION_DATA: 'simulationData',
+        TEAMS_DATA: 'teamsData',
+        TEAM_CODES: 'teamCodes'
+    },
+    // Sazonalidade por trimestre e tipo de produto
+    SEASONALITY: {
+        1: { // Q1 (Jan-Mar): Pós-Natal, vendas baixas
+            premium: { demand: 0.95, price: 1.00, churn: 0.95 },
+            midrange: { demand: 0.85, price: 0.98, churn: 1.10 },
+            economic: { demand: 0.80, price: 0.95, churn: 1.15 }
+        },
+        2: { // Q2 (Abr-Jun): Primavera, vendas normais
+            premium: { demand: 1.00, price: 1.00, churn: 1.00 },
+            midrange: { demand: 1.00, price: 1.00, churn: 1.00 },
+            economic: { demand: 1.00, price: 1.00, churn: 1.00 }
+        },
+        3: { // Q3 (Jul-Set): Verão, vendas baixas (férias)
+            premium: { demand: 0.98, price: 1.02, churn: 0.90 },
+            midrange: { demand: 0.90, price: 0.97, churn: 1.05 },
+            economic: { demand: 0.85, price: 0.95, churn: 1.12 }
+        },
+        4: { // Q4 (Out-Dez): Natal, vendas altas
+            premium: { demand: 1.15, price: 1.05, churn: 0.85 },
+            midrange: { demand: 1.25, price: 1.00, churn: 0.90 },
+            economic: { demand: 1.30, price: 0.98, churn: 0.95 }
+        }
+    }
+};
+
+// ===== APLICAÇÃO PRINCIPAL =====
+class SimulatorApp {
+    constructor() {
+        this.currentUser = null;
+        this.isAdmin = false;
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.checkInitialState();
+    }
+
+    // ===== FUNÇÕES AUXILIARES =====
+    getQuarterLabel(periodNum) {
+        const quarter = ((periodNum - 1) % 4) + 1;
+        const year = CONFIG.START_YEAR + Math.floor((periodNum - 1) / 4);
+        return `Trimestre ${quarter} - ${year}`;
+    }
+
+    getQuarterNumber(periodNum) {
+        return ((periodNum - 1) % 4) + 1;
+    }
+
+    getSeasonalityFactors(periodNum, productType) {
+        const quarter = this.getQuarterNumber(periodNum);
+        return CONFIG.SEASONALITY[quarter][productType];
+    }
+
+    // ===== NAVEGAÇÃO =====
+    showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    showAdminLogin() {
+        this.showScreen('adminLoginScreen');
+    }
+
+    backToLogin() {
+        this.showScreen('loginScreen');
+    }
+
+    logout() {
+        this.currentUser = null;
+        this.isAdmin = false;
+        this.showScreen('loginScreen');
+        document.getElementById('loginForm').reset();
+    }
+
+    switchView(viewName) {
+        document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
+
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(`${viewName}View`).classList.add('active');
+
+        if (viewName === 'overview') this.loadOverviewData();
+        if (viewName === 'decisions') this.loadDecisionsForm();
+        if (viewName === 'market') this.loadMarketData();
+        if (viewName === 'history') this.loadHistoryData();
+    }
+
+    // ===== AUTENTICAÇÃO =====
+    loginTeam(teamCode) {
+        teamCode = teamCode.trim().toUpperCase();
+
+        const teamCodes = this.getTeamCodes();
+        if (!teamCodes.includes(teamCode)) {
+            alert('Código de equipa inválido!');
+            return;
+        }
+
+        const simData = this.getSimulationData();
+        if (!simData || !simData.initialized) {
+            alert('A simulação ainda não foi inicializada. Contacte o professor.');
+            return;
+        }
+
+        const teamData = this.getTeamData(teamCode);
+        if (!teamData) {
+            alert('Dados da equipa não encontrados. Contacte o professor.');
+            return;
+        }
+
+        this.currentUser = teamCode;
+        this.isAdmin = false;
+        this.showScreen('dashboardScreen');
+        this.loadDashboard();
+    }
+
+    loginAdmin(password) {
+        const storedPassword = localStorage.getItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD);
+        const correctPassword = storedPassword || CONFIG.DEFAULT_ADMIN_PASSWORD;
+
+        if (password !== correctPassword) {
+            alert('Palavra-passe incorreta!');
+            return;
+        }
+
+        this.isAdmin = true;
+        this.showScreen('adminScreen');
+        this.loadAdminPanel();
+    }
+
+    // ===== DADOS =====
+    getSimulationData() {
+        const data = localStorage.getItem(CONFIG.STORAGE_KEYS.SIMULATION_DATA);
+        return data ? JSON.parse(data) : null;
+    }
+
+    saveSimulationData(data) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SIMULATION_DATA, JSON.stringify(data));
+    }
+
+    getAllTeamsData() {
+        const data = localStorage.getItem(CONFIG.STORAGE_KEYS.TEAMS_DATA);
+        return data ? JSON.parse(data) : null;
+    }
+
+    saveAllTeamsData(data) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.TEAMS_DATA, JSON.stringify(data));
+    }
+
+    getTeamData(teamCode) {
+        const allTeams = this.getAllTeamsData();
+        return allTeams ? allTeams[teamCode] : null;
+    }
+
+    saveTeamData(teamCode, data) {
+        let allTeams = this.getAllTeamsData() || {};
+        allTeams[teamCode] = data;
+        this.saveAllTeamsData(allTeams);
+    }
+
+    getTeamCodes() {
+        const data = localStorage.getItem(CONFIG.STORAGE_KEYS.TEAM_CODES);
+        return data ? JSON.parse(data) : [];
+    }
+
+    saveTeamCodes(codes) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.TEAM_CODES, JSON.stringify(codes));
+    }
+
+    // ===== INICIALIZAÇÃO =====
+    showTeamCodesSetup() {
+        const container = document.getElementById('teamCodesSetup');
+        container.innerHTML = `
+            <h3>Definir Códigos das Equipas</h3>
+            <p>Defina os códigos para as 9 equipas (ex: EQUIPA01, GRUPO_A, etc.)</p>
+            <div style="margin-bottom: 15px;">
+                <button onclick="app.gerarCodigosAleatorios()" class="btn-secondary">🎲 Gerar Códigos Aleatórios (10 dígitos)</button>
+            </div>
+            <div class="team-codes-grid">
+                ${Array.from({length: CONFIG.NUM_TEAMS}, (_, i) => `
+                    <div class="form-group">
+                        <label>Equipa ${i + 1}</label>
+                        <input type="text" id="teamCode${i}" value="EQUIPA${String(i + 1).padStart(2, '0')}" required>
+                    </div>
+                `).join('')}
+            </div>
+            <button onclick="app.initializeWithCodes()" class="btn-primary" style="margin-top: 20px;">Inicializar com estes Códigos</button>
+            <button onclick="document.getElementById('teamCodesSetup').style.display='none'" class="btn-secondary">Cancelar</button>
+        `;
+        container.style.display = 'block';
+    }
+
+    gerarCodigosAleatorios() {
+        const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Sem 0, O, I, 1 para evitar confusão
+        const codigosGerados = new Set();
+
+        while (codigosGerados.size < CONFIG.NUM_TEAMS) {
+            let codigo = '';
+            for (let i = 0; i < 10; i++) {
+                codigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+            }
+            codigosGerados.add(codigo);
+        }
+
+        const codigosArray = Array.from(codigosGerados);
+        for (let i = 0; i < CONFIG.NUM_TEAMS; i++) {
+            document.getElementById(`teamCode${i}`).value = codigosArray[i];
+        }
+
+        alert('Códigos aleatórios gerados! Guarde-os antes de inicializar.');
+    }
+
+    initializeWithCodes() {
+        // Recolher códigos
+        const codes = [];
+        for (let i = 0; i < CONFIG.NUM_TEAMS; i++) {
+            const code = document.getElementById(`teamCode${i}`).value.trim().toUpperCase();
+            if (!code) {
+                alert(`Código da equipa ${i + 1} está vazio!`);
+                return;
+            }
+            if (codes.includes(code)) {
+                alert(`Código "${code}" está duplicado!`);
+                return;
+            }
+            codes.push(code);
+        }
+
+        if (!confirm(`Isto irá criar ${CONFIG.HISTORICAL_PERIODS} períodos históricos IDÊNTICOS para as ${CONFIG.NUM_TEAMS} equipas. Continuar?`)) {
+            return;
+        }
+
+        // Salvar códigos
+        this.saveTeamCodes(codes);
+
+        // Gerar dados históricos IDÊNTICOS
+        const historicalData = this.generateIdenticalHistory();
+
+        // Criar equipas com dados idênticos
+        const teamsData = {};
+        codes.forEach((code, index) => {
+            const team = {
+                code: code,
+                name: `Equipa ${index + 1}`,
+                products: CONFIG.PRODUCTS.map(product => ({
+                    id: product.id,
+                    name: product.name,
+                    periods: JSON.parse(JSON.stringify(historicalData[product.id])) // deep copy
+                })),
+                globalData: {
+                    totalAssets: 500000,
+                    equity: 300000,
+                    totalLiabilities: 200000
+                }
+            };
+            teamsData[code] = team;
+        });
+
+        this.saveAllTeamsData(teamsData);
+
+        const simData = {
+            initialized: true,
+            currentPeriod: CONFIG.HISTORICAL_PERIODS + 1,
+            startDate: new Date().toISOString()
+        };
+        this.saveSimulationData(simData);
+
+        document.getElementById('teamCodesSetup').style.display = 'none';
+        alert(`Simulação inicializada! ${CONFIG.HISTORICAL_PERIODS} trimestres históricos criados. Próximo: ${this.getQuarterLabel(simData.currentPeriod)}`);
+        this.loadAdminPanel();
+    }
+
+    generateIdenticalHistory() {
+        // Gera histórico IDÊNTICO para todos os produtos
+        // Com 3 produtos MUITO diferentes e decisões variadas por período
+        const history = {};
+
+        // Definir características distintas de cada produto
+        const productProfiles = {
+            produtoA: {
+                name: 'Premium',
+                basePrice: 150,
+                baseCustomers: 5000,
+                baseCost: 45,
+                fixedCosts: 50000,
+                description: 'Produto premium de alta qualidade'
+            },
+            produtoB: {
+                name: 'Mid-Range',
+                basePrice: 100,
+                baseCustomers: 8000,
+                baseCost: 35,
+                fixedCosts: 45000,
+                description: 'Produto equilibrado para mercado médio'
+            },
+            produtoC: {
+                name: 'Económico',
+                basePrice: 60,
+                baseCustomers: 12000,
+                baseCost: 25,
+                fixedCosts: 40000,
+                description: 'Produto de volume com preço competitivo'
+            }
+        };
+
+        // Estratégias diferentes por período (para demonstrar impactos)
+        const periodStrategies = {
+            1: { desc: 'Conservadora', marketing: 0.8, discount: 0.3, quality: 0.7, commission: 0.6 },
+            2: { desc: 'Agressiva em Marketing', marketing: 1.5, discount: 0.4, quality: 0.8, commission: 0.7 },
+            3: { desc: 'Desconto Promocional', marketing: 1.0, discount: 1.8, quality: 0.6, commission: 0.9 },
+            4: { desc: 'Foco em Qualidade', marketing: 1.0, discount: 0.2, quality: 1.6, commission: 0.5 },
+            5: { desc: 'Equilibrada', marketing: 1.2, discount: 0.8, quality: 1.0, commission: 0.7 }
+        };
+
+        CONFIG.PRODUCTS.forEach((product) => {
+            const profile = productProfiles[product.id];
+            const periods = [];
+
+            let previousCustomers = profile.baseCustomers;
+
+            for (let p = 1; p <= CONFIG.HISTORICAL_PERIODS; p++) {
+                const strategy = periodStrategies[p];
+
+                // === DECISÕES VARIADAS POR PERÍODO E PRODUTO ===
+                let baseMarketing, baseDiscount, baseQuality, baseCommission;
+
+                if (product.id === 'produtoA') {
+                    // Premium: marketing alto, desconto baixo, qualidade muito alta
+                    baseMarketing = 18000;
+                    baseDiscount = 2;
+                    baseQuality = 8000;
+                    baseCommission = 8;
+                } else if (product.id === 'produtoB') {
+                    // Mid-Range: valores equilibrados
+                    baseMarketing = 12000;
+                    baseDiscount = 5;
+                    baseQuality = 4000;
+                    baseCommission = 5;
+                } else {
+                    // Económico: marketing moderado, desconto alto, qualidade baixa
+                    baseMarketing = 10000;
+                    baseDiscount = 10;
+                    baseQuality = 2000;
+                    baseCommission = 3;
+                }
+
+                const decisions = {
+                    price: profile.basePrice,
+                    discount: Math.round(baseDiscount * strategy.discount * 10) / 10,
+                    marketingInvestment: Math.round(baseMarketing * strategy.marketing),
+                    qualityInvestment: Math.round(baseQuality * strategy.quality),
+                    salesCommission: Math.round(baseCommission * strategy.commission * 10) / 10
+                };
+
+                // === SAZONALIDADE ===
+                const quarter = ((p - 1) % 4) + 1;
+                const seasonality = CONFIG.SEASONALITY[quarter][product.type];
+
+                // === CÁLCULO DE CLIENTES COM IMPACTO DAS DECISÕES E SAZONALIDADE ===
+
+                // Marketing traz novos clientes (mais marketing = mais clientes)
+                const marketingEfficiency = product.id === 'produtoA' ? 0.025 :
+                                           product.id === 'produtoB' ? 0.035 : 0.045;
+                const newCustomers = Math.round(decisions.marketingInvestment * marketingEfficiency * (1 + p * 0.1) * seasonality.demand);
+
+                // Qualidade reduz abandono (mais qualidade = menos perdidos)
+                const baseChurnRate = product.id === 'produtoA' ? 0.08 :
+                                     product.id === 'produtoB' ? 0.12 : 0.15;
+                const qualityImpact = Math.min(decisions.qualityInvestment / 50000, 1);
+                const churnRate = Math.max(0.04, (baseChurnRate - (qualityImpact * 0.06)) * seasonality.churn);
+                const lostCustomers = Math.round(previousCustomers * churnRate);
+
+                const customerBase = previousCustomers + newCustomers - lostCustomers;
+                const retainedCustomers = previousCustomers - lostCustomers;
+
+                // === CÁLCULO DE VENDAS COM SAZONALIDADE ===
+
+                // Desconto aumenta vendas por cliente mas reduz margem
+                const effectivePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
+                const discountBoost = 1 + (decisions.discount / 100) * 0.8; // desconto aumenta conversão
+                const qualityBoost = 1 + (decisions.qualityInvestment / 30000) * 0.2; // qualidade aumenta vendas
+                const unitsSold = Math.round(customerBase * discountBoost * qualityBoost * seasonality.demand);
+                const revenue = unitsSold * effectivePrice;
+
+                // === CUSTOS ===
+
+                const unitVariableCost = profile.baseCost;
+                const variableCosts = unitsSold * unitVariableCost;
+                const fixedCosts = profile.fixedCosts;
+                const salesCommissions = revenue * (decisions.salesCommission / 100);
+
+                const totalCosts = variableCosts + fixedCosts + salesCommissions;
+                const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment;
+
+                const margem = effectivePrice - unitVariableCost;
+                const profit = revenue - totalCosts - totalInvestments;
+
+                const data = {
+                    // Clientes
+                    customerBase: customerBase,
+                    newCustomers: newCustomers,
+                    lostCustomers: lostCustomers,
+                    previousCustomers: previousCustomers,
+                    retainedCustomers: retainedCustomers,
+
+                    // Vendas e Receitas
+                    revenue: Math.round(revenue * 100) / 100,
+                    unitsSold: unitsSold,
+                    unitPrice: Math.round(effectivePrice * 100) / 100,
+                    appliedDiscount: decisions.discount,
+
+                    // Custos
+                    variableCosts: Math.round(variableCosts * 100) / 100,
+                    unitVariableCost: unitVariableCost,
+                    fixedCosts: fixedCosts,
+
+                    // Investimentos
+                    marketingCost: decisions.marketingInvestment,
+                    qualityCost: decisions.qualityInvestment,
+                    salesCommissions: Math.round(salesCommissions * 100) / 100,
+
+                    // Resultados
+                    margem: Math.round(margem * 100) / 100,
+                    profit: Math.round(profit * 100) / 100
+                };
+
+                periods.push({
+                    period: p,
+                    decisions: decisions,
+                    data: data
+                });
+
+                // Atualizar para próximo período
+                previousCustomers = customerBase;
+            }
+
+            history[product.id] = periods;
+        });
+
+        return history;
+    }
+
+    // ===== DECISÕES =====
+    submitDecisions(formData) {
+        const simData = this.getSimulationData();
+        if (!simData) {
+            alert('Simulação não inicializada!');
+            return;
+        }
+
+        const currentPeriod = simData.currentPeriod;
+
+        if (currentPeriod > CONFIG.TOTAL_PERIODS) {
+            alert('A simulação já terminou!');
+            return;
+        }
+
+        const teamData = this.getTeamData(this.currentUser);
+
+        // Verificar se já submeteu
+        const hasDecision = teamData.products[0].periods.some(p => p.period === currentPeriod);
+        if (hasDecision) {
+            alert('Já submeteu decisões para este período!');
+            return;
+        }
+
+        // Recolher decisões globais
+        const globalDecisions = {
+            retentionInvestment: parseFloat(formData.get('retentionInvestment')),
+            brandInvestment: parseFloat(formData.get('brandInvestment')),
+            customerService: parseFloat(formData.get('customerService')),
+            creditDays: parseInt(formData.get('creditDays')),
+            processImprovement: parseFloat(formData.get('processImprovement'))
+        };
+
+        // Recolher decisões por produto
+        CONFIG.PRODUCTS.forEach(product => {
+            const productDecisions = {
+                price: parseFloat(formData.get(`price_${product.id}`)),
+                discount: parseFloat(formData.get(`discount_${product.id}`)),
+                marketingInvestment: parseFloat(formData.get(`marketing_${product.id}`)),
+                qualityInvestment: parseFloat(formData.get(`quality_${product.id}`)),
+                salesCommission: parseFloat(formData.get(`commission_${product.id}`))
+            };
+
+            const productData = teamData.products.find(p => p.id === product.id);
+            const previousPeriod = productData.periods[productData.periods.length - 1];
+
+            const newPeriodData = this.calculateNewPeriodData(
+                previousPeriod,
+                productDecisions,
+                globalDecisions,
+                teamData.globalData,
+                currentPeriod,
+                product.type
+            );
+
+            const newPeriod = {
+                period: currentPeriod,
+                decisions: productDecisions,
+                data: newPeriodData
+            };
+
+            productData.periods.push(newPeriod);
+        });
+
+        this.saveTeamData(this.currentUser, teamData);
+
+        alert('Decisões submetidas com sucesso!');
+        this.loadDashboard();
+    }
+
+    calculateNewPeriodData(previousPeriod, decisions, globalDecisions, globalData, periodNum, productType) {
+        const prevData = previousPeriod.data;
+        const prevCustomers = prevData.customerBase;
+
+        // === SAZONALIDADE ===
+        const seasonality = this.getSeasonalityFactors(periodNum, productType);
+
+        // === CLIENTES COM SAZONALIDADE ===
+        const marketingEfficiency = 0.035 + (decisions.qualityInvestment / 80000) * 0.02;
+        const newCustomers = Math.round(decisions.marketingInvestment * marketingEfficiency * seasonality.demand);
+
+        // Taxa de abandono base reduzida por fidelização E serviço ao cliente
+        const baseChurnRate = 0.12;
+        const retentionImpact = Math.min(globalDecisions.retentionInvestment / 60000, 1);
+        const serviceImpact = Math.min(globalDecisions.customerService / 40000, 1);
+        const churnReduction = (retentionImpact * 0.05) + (serviceImpact * 0.04);
+        const churnRate = Math.max(0.04, (baseChurnRate - churnReduction) * seasonality.churn);
+        const lostCustomers = Math.round(prevCustomers * churnRate);
+
+        const customerBase = prevCustomers + newCustomers - lostCustomers;
+        const retainedCustomers = prevCustomers - lostCustomers;
+
+        // === VENDAS COM SAZONALIDADE ===
+        const effectivePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
+        const priceImpact = Math.max(0.7, 1 - (decisions.discount / 100) * 0.5);
+        const qualityImpact = 1 + (decisions.qualityInvestment / 40000) * 0.15;
+        const brandImpact = 1 + (globalDecisions.brandInvestment / 50000) * 0.1; // Marca aumenta vendas
+        const unitsSold = Math.round(customerBase * priceImpact * qualityImpact * brandImpact * seasonality.demand);
+        const revenue = unitsSold * effectivePrice;
+
+        // === CUSTOS ===
+        // Melhoria de processos reduz custo variável unitário
+        const processEfficiency = Math.min(globalDecisions.processImprovement / 30000, 1);
+        const costReduction = 1 - (processEfficiency * 0.25); // Até 25% de redução
+        const unitVariableCost = 35 * costReduction;
+        const variableCosts = unitsSold * unitVariableCost;
+
+        const fixedCosts = prevData.fixedCosts;
+        const salesCommissions = revenue * (decisions.salesCommission / 100);
+
+        const totalCosts = variableCosts + fixedCosts + salesCommissions;
+        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment +
+                                globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
+                                globalDecisions.customerService + globalDecisions.processImprovement;
+
+        const margem = effectivePrice - unitVariableCost;
+        const profit = revenue - totalCosts - totalInvestments;
+
+        return {
+            customerBase: customerBase,
+            newCustomers: newCustomers,
+            lostCustomers: lostCustomers,
+            previousCustomers: prevCustomers,
+            retainedCustomers: retainedCustomers,
+
+            revenue: Math.round(revenue * 100) / 100,
+            unitsSold: unitsSold,
+            unitPrice: Math.round(effectivePrice * 100) / 100,
+            appliedDiscount: decisions.discount,
+
+            variableCosts: Math.round(variableCosts * 100) / 100,
+            unitVariableCost: Math.round(unitVariableCost * 100) / 100,
+            fixedCosts: fixedCosts,
+
+            marketingCost: decisions.marketingInvestment,
+            qualityCost: decisions.qualityInvestment,
+            salesCommissions: Math.round(salesCommissions * 100) / 100,
+
+            margem: Math.round(margem * 100) / 100,
+            profit: Math.round(profit * 100) / 100
+        };
+    }
+
+    // ===== DASHBOARD =====
+    loadDashboard() {
+        const teamData = this.getTeamData(this.currentUser);
+        const simData = this.getSimulationData();
+
+        document.getElementById('teamName').textContent = teamData.name;
+        document.getElementById('currentPeriod').textContent = this.getQuarterLabel(simData.currentPeriod);
+
+        this.switchView('overview');
+    }
+
+    loadOverviewData() {
+        const teamData = this.getTeamData(this.currentUser);
+
+        // Mostrar dados de cada produto
+        const productsContainer = document.getElementById('productsDataContainer');
+        productsContainer.innerHTML = '';
+
+        let totalRevenue = 0;
+        let totalCustomers = 0;
+        let totalProfit = 0;
+
+        teamData.products.forEach(product => {
+            const latestPeriod = product.periods[product.periods.length - 1];
+            const data = latestPeriod.data;
+
+            totalRevenue += data.revenue;
+            totalCustomers += data.customerBase;
+            totalProfit += data.profit;
+
+            const productCard = document.createElement('div');
+            productCard.className = 'product-summary-card';
+            productCard.innerHTML = `
+                <h3>${product.name}</h3>
+                <div class="product-stats">
+                    <div class="stat-item">
+                        <span>Receita</span>
+                        <strong>${this.formatCurrency(data.revenue)}</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Clientes</span>
+                        <strong>${data.customerBase.toLocaleString('pt-PT')}</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Lucro</span>
+                        <strong>${this.formatCurrency(data.profit)}</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Preço</span>
+                        <strong>${this.formatCurrency(data.unitPrice)}</strong>
+                    </div>
+                </div>
+                <button onclick="app.showProductDetails('${product.id}')" class="btn-secondary">Ver Detalhes</button>
+            `;
+            productsContainer.appendChild(productCard);
+        });
+
+        // Totais da empresa
+        document.getElementById('totalRevenue').textContent = this.formatCurrency(totalRevenue);
+        document.getElementById('totalCustomers').textContent = totalCustomers.toLocaleString('pt-PT');
+        document.getElementById('totalProfit').textContent = this.formatCurrency(totalProfit);
+
+        // Balanço
+        document.getElementById('totalAssets').textContent = this.formatCurrency(teamData.globalData.totalAssets);
+        document.getElementById('equity').textContent = this.formatCurrency(teamData.globalData.equity);
+        document.getElementById('totalLiabilities').textContent = this.formatCurrency(teamData.globalData.totalLiabilities);
+    }
+
+    showProductDetails(productId) {
+        const teamData = this.getTeamData(this.currentUser);
+        const product = teamData.products.find(p => p.id === productId);
+        const latestPeriod = product.periods[product.periods.length - 1];
+        const data = latestPeriod.data;
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>${product.name} - Dados Detalhados</h2>
+                    <button onclick="this.closest('.modal-overlay').remove()" class="btn-ghost">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="data-grid">
+                        <div class="data-card">
+                            <h3>Clientes</h3>
+                            <div class="data-row"><span>Base Atual</span><strong>${data.customerBase.toLocaleString('pt-PT')}</strong></div>
+                            <div class="data-row"><span>Novos</span><strong>${data.newCustomers.toLocaleString('pt-PT')}</strong></div>
+                            <div class="data-row"><span>Perdidos</span><strong>${data.lostCustomers.toLocaleString('pt-PT')}</strong></div>
+                            <div class="data-row"><span>Base Anterior</span><strong>${data.previousCustomers.toLocaleString('pt-PT')}</strong></div>
+                            <div class="data-row"><span>Mantidos</span><strong>${data.retainedCustomers.toLocaleString('pt-PT')}</strong></div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Receitas</h3>
+                            <div class="data-row"><span>Receita Total</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
+                            <div class="data-row"><span>Unidades Vendidas</span><strong>${data.unitsSold.toLocaleString('pt-PT')}</strong></div>
+                            <div class="data-row"><span>Preço Unitário</span><strong>${this.formatCurrency(data.unitPrice)}</strong></div>
+                            <div class="data-row"><span>Desconto</span><strong>${data.appliedDiscount}%</strong></div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Custos</h3>
+                            <div class="data-row"><span>Custos Variáveis</span><strong>${this.formatCurrency(data.variableCosts)}</strong></div>
+                            <div class="data-row"><span>Custo Var. Unit.</span><strong>${this.formatCurrency(data.unitVariableCost)}</strong></div>
+                            <div class="data-row"><span>Custos Fixos</span><strong>${this.formatCurrency(data.fixedCosts)}</strong></div>
+                            <div class="data-row"><span>Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Investimentos</h3>
+                            <div class="data-row"><span>Marketing</span><strong>${this.formatCurrency(data.marketingCost)}</strong></div>
+                            <div class="data-row"><span>Qualidade</span><strong>${this.formatCurrency(data.qualityCost)}</strong></div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Resultados</h3>
+                            <div class="data-row"><span>Margem Unitária</span><strong>${this.formatCurrency(data.margem)}</strong></div>
+                            <div class="data-row"><span>Lucro</span><strong>${this.formatCurrency(data.profit)}</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    loadDecisionsForm() {
+        const simData = this.getSimulationData();
+        const currentPeriod = simData.currentPeriod;
+        const quarterLabel = this.getQuarterLabel(currentPeriod);
+
+        document.getElementById('decisionPeriod').textContent = quarterLabel;
+
+        const teamData = this.getTeamData(this.currentUser);
+        const hasDecision = teamData.products[0].periods.some(p => p.period === currentPeriod);
+
+        const alert = document.getElementById('decisionAlert');
+        const form = document.getElementById('decisionsForm');
+
+        if (currentPeriod > CONFIG.TOTAL_PERIODS) {
+            alert.className = 'alert alert-info';
+            alert.textContent = 'A simulação terminou. Não é possível tomar mais decisões.';
+            form.style.display = 'none';
+            return;
+        }
+
+        if (hasDecision) {
+            alert.className = 'alert alert-success';
+            alert.textContent = '✓ Decisões já submetidas para este trimestre!';
+            form.style.display = 'none';
+        } else {
+            alert.className = 'alert alert-warning';
+            alert.textContent = '⚠ Submeta as suas decisões para ' + quarterLabel;
+            form.style.display = 'block';
+
+            // Preencher com valores anteriores
+            teamData.products.forEach(product => {
+                const lastPeriod = product.periods[product.periods.length - 1];
+                const lastDecisions = lastPeriod.decisions;
+
+                document.getElementById(`price_${product.id}`).value = lastDecisions.price;
+                document.getElementById(`discount_${product.id}`).value = lastDecisions.discount || 0;
+                document.getElementById(`marketing_${product.id}`).value = lastDecisions.marketingInvestment;
+                document.getElementById(`quality_${product.id}`).value = lastDecisions.qualityInvestment || 3500;
+                document.getElementById(`commission_${product.id}`).value = lastDecisions.salesCommission || 5;
+            });
+
+            // Decisões globais (valores default)
+            document.getElementById('retentionInvestment').value = 8000;
+            document.getElementById('brandInvestment').value = 5000;
+            document.getElementById('customerService').value = 6000;
+            document.getElementById('creditDays').value = 30;
+            document.getElementById('processImprovement').value = 4000;
+        }
+    }
+
+    loadMarketData() {
+        const allTeams = this.getAllTeamsData();
+        const simData = this.getSimulationData();
+        const currentPeriod = simData.currentPeriod - 1;
+
+        const tbody = document.getElementById('marketTableBody');
+        tbody.innerHTML = '';
+
+        const teamCodes = this.getTeamCodes();
+        let totalMarketRevenue = 0;
+        let totalMarketCustomers = 0;
+        let yourRevenue = 0;
+        let yourCustomers = 0;
+
+        teamCodes.forEach(code => {
+            const team = allTeams[code];
+            if (!team) return;
+
+            let teamRevenue = 0;
+            let teamCustomers = 0;
+
+            team.products.forEach(product => {
+                const period = product.periods.find(p => p.period === currentPeriod) || product.periods[product.periods.length - 1];
+                teamRevenue += period.data.revenue;
+                teamCustomers += period.data.customerBase;
+            });
+
+            const row = document.createElement('tr');
+            if (code === this.currentUser) {
+                row.classList.add('highlight');
+                yourRevenue = teamRevenue;
+                yourCustomers = teamCustomers;
+            }
+
+            row.innerHTML = `
+                <td>${team.name}</td>
+                <td>${this.formatCurrency(teamRevenue)}</td>
+                <td>${teamCustomers.toLocaleString('pt-PT')}</td>
+            `;
+            tbody.appendChild(row);
+
+            totalMarketRevenue += teamRevenue;
+            totalMarketCustomers += teamCustomers;
+        });
+
+        document.getElementById('totalMarket').textContent = this.formatCurrency(totalMarketRevenue);
+        document.getElementById('totalMarketCustomers').textContent = totalMarketCustomers.toLocaleString('pt-PT');
+        document.getElementById('yourRevenue').textContent = this.formatCurrency(yourRevenue);
+        document.getElementById('yourCustomers').textContent = yourCustomers.toLocaleString('pt-PT');
+    }
+
+    loadHistoryData() {
+        const teamData = this.getTeamData(this.currentUser);
+        const historyContent = document.getElementById('historyContent');
+        historyContent.innerHTML = '';
+
+        // Agrupar por período
+        const numPeriods = teamData.products[0].periods.length;
+
+        for (let p = 0; p < numPeriods; p++) {
+            const periodDiv = document.createElement('div');
+            periodDiv.className = 'history-period';
+
+            const period = teamData.products[0].periods[p].period;
+            const quarterLabel = this.getQuarterLabel(period);
+            const quarter = this.getQuarterNumber(period);
+            const isHistorical = period <= CONFIG.HISTORICAL_PERIODS;
+
+            // Descrição da sazonalidade
+            const seasonalityDesc = {
+                1: '❄️ Pós-Natal (vendas baixas)',
+                2: '🌸 Primavera (vendas normais)',
+                3: '☀️ Verão (férias, vendas reduzidas)',
+                4: '🎄 Natal (vendas altas)'
+            };
+
+            let productsHTML = '';
+            teamData.products.forEach(product => {
+                const periodData = product.periods[p];
+                const d = periodData.decisions;
+                const data = periodData.data;
+
+                productsHTML += `
+                    <div class="product-history">
+                        <h4>${product.name}</h4>
+                        <div class="history-data">
+                            <div class="history-item"><span>Receita</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
+                            <div class="history-item"><span>Lucro</span><strong>${this.formatCurrency(data.profit)}</strong></div>
+                            <div class="history-item"><span>Clientes</span><strong>${data.customerBase.toLocaleString('pt-PT')}</strong></div>
+                            <div class="history-item"><span>Preço</span><strong>${this.formatCurrency(d.price)}</strong></div>
+                            <div class="history-item"><span>Desconto</span><strong>${d.discount}%</strong></div>
+                            <div class="history-item"><span>Marketing</span><strong>${this.formatCurrency(d.marketingInvestment)}</strong></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            periodDiv.innerHTML = `
+                <h3>${quarterLabel}${isHistorical ? ' (Histórico)' : ''}</h3>
+                <p class="quarter-info">${seasonalityDesc[quarter]}</p>
+                ${productsHTML}
+            `;
+
+            historyContent.appendChild(periodDiv);
+        }
+    }
+
+    // ===== ADMIN =====
+    loadAdminPanel() {
+        const simData = this.getSimulationData();
+
+        if (simData && simData.initialized) {
+            document.getElementById('adminCurrentPeriod').textContent = this.getQuarterLabel(simData.currentPeriod);
+            document.getElementById('adminState').textContent = 'Inicializado';
+
+            const teamCodes = this.getTeamCodes();
+            const teamCodesList = document.getElementById('teamCodesList');
+            teamCodesList.innerHTML = '';
+
+            teamCodes.forEach(code => {
+                const div = document.createElement('div');
+                div.className = 'team-code-item';
+                div.textContent = code;
+                teamCodesList.appendChild(div);
+            });
+
+            document.getElementById('teamCodesSetup').style.display = 'none';
+        } else {
+            document.getElementById('adminCurrentPeriod').textContent = '-';
+            document.getElementById('adminState').textContent = 'Não Inicializado';
+            document.getElementById('teamCodesList').innerHTML = '<p>Inicialize a simulação primeiro</p>';
+        }
+    }
+
+    advancePeriod() {
+        const simData = this.getSimulationData();
+        if (!simData || !simData.initialized) {
+            alert('Simulação não inicializada!');
+            return;
+        }
+
+        if (simData.currentPeriod > CONFIG.TOTAL_PERIODS) {
+            alert('A simulação já terminou!');
+            return;
+        }
+
+        const nextQuarter = this.getQuarterLabel(simData.currentPeriod + 1);
+        if (!confirm(`Avançar para ${nextQuarter}?`)) {
+            return;
+        }
+
+        simData.currentPeriod++;
+        this.saveSimulationData(simData);
+
+        alert(`Avançado para ${this.getQuarterLabel(simData.currentPeriod)}!`);
+        this.loadAdminPanel();
+    }
+
+    resetSimulation() {
+        if (!confirm('ATENÇÃO: Isto irá apagar TODOS os dados. Tem certeza?')) {
+            return;
+        }
+
+        if (!confirm('Confirmação final: Todos os dados serão perdidos!')) {
+            return;
+        }
+
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.SIMULATION_DATA);
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.TEAMS_DATA);
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.TEAM_CODES);
+
+        alert('Simulação resetada com sucesso!');
+        this.loadAdminPanel();
+    }
+
+    changePassword(newPassword) {
+        if (!newPassword || newPassword.length < 6) {
+            alert('A palavra-passe deve ter pelo menos 6 caracteres!');
+            return;
+        }
+
+        localStorage.setItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
+        alert('Palavra-passe alterada com sucesso!');
+        document.getElementById('changePasswordForm').reset();
+    }
+
+    // ===== EXPORTAÇÃO EXCEL =====
+    exportTeamData() {
+        const teamData = this.getTeamData(this.currentUser);
+
+        const wb = XLSX.utils.book_new();
+
+        // Sheet 1: Resumo Geral
+        const resumoData = [
+            ['SIMULADOR DE MÉTRICAS DE MARKETING'],
+            ['Equipa:', teamData.name],
+            ['Código:', teamData.code],
+            ['Data de Exportação:', new Date().toLocaleString('pt-PT')],
+            []
+        ];
+
+        teamData.products.forEach(product => {
+            resumoData.push([`${product.name}`], []);
+            resumoData.push(['Período', 'Receita', 'Lucro', 'Clientes', 'Novos', 'Perdidos', 'Preço', 'Desconto', 'Marketing', 'Qualidade']);
+
+            product.periods.forEach(period => {
+                const d = period.decisions;
+                const data = period.data;
+                resumoData.push([
+                    period.period,
+                    data.revenue,
+                    data.profit,
+                    data.customerBase,
+                    data.newCustomers,
+                    data.lostCustomers,
+                    d.price,
+                    d.discount,
+                    d.marketingInvestment,
+                    d.qualityInvestment
+                ]);
+            });
+            resumoData.push([]);
+        });
+
+        const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
+        XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+
+        // Exportar ficheiro
+        XLSX.writeFile(wb, `${teamData.code}_Dados_Simulador.xlsx`);
+    }
+
+    exportAllData() {
+        const simData = this.getSimulationData();
+        const teamsData = this.getAllTeamsData();
+        const teamCodes = this.getTeamCodes();
+
+        if (!simData || !teamsData) {
+            alert('Não há dados para exportar!');
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        // ===== SHEET 1: RANKING GERAL =====
+        const ranking = [];
+        ranking.push(['RANKING GERAL - ' + this.getQuarterLabel(simData.currentPeriod - 1)]);
+        ranking.push([]);
+        ranking.push(['Posição', 'Equipa', 'Código', 'Receita Total (€)', 'Lucro Total (€)', 'Clientes Totais', 'Períodos Completos']);
+
+        const rankingData = [];
+        teamCodes.forEach(code => {
+            const team = teamsData[code];
+            if (!team) return;
+
+            let totalRevenue = 0;
+            let totalProfit = 0;
+            let totalCustomers = 0;
+
+            team.products.forEach(product => {
+                const lastPeriod = product.periods[product.periods.length - 1];
+                totalRevenue += lastPeriod.data.revenue;
+                totalProfit += lastPeriod.data.profit;
+                totalCustomers += lastPeriod.data.customerBase;
+            });
+
+            rankingData.push({
+                name: team.name,
+                code: code,
+                revenue: totalRevenue,
+                profit: totalProfit,
+                customers: totalCustomers,
+                periods: team.products[0].periods.length
+            });
+        });
+
+        // Ordenar por receita
+        rankingData.sort((a, b) => b.revenue - a.revenue);
+
+        rankingData.forEach((team, index) => {
+            ranking.push([
+                index + 1,
+                team.name,
+                team.code,
+                team.revenue.toFixed(2),
+                team.profit.toFixed(2),
+                team.customers,
+                team.periods
+            ]);
+        });
+
+        const wsRanking = XLSX.utils.aoa_to_sheet(ranking);
+        XLSX.utils.book_append_sheet(wb, wsRanking, 'Ranking');
+
+        // ===== SHEET 2: EVOLUÇÃO POR TRIMESTRE =====
+        const numPeriods = teamsData[teamCodes[0]].products[0].periods.length;
+
+        for (let p = 0; p < numPeriods; p++) {
+            const periodNum = teamsData[teamCodes[0]].products[0].periods[p].period;
+            const quarterLabel = this.getQuarterLabel(periodNum);
+            const periodData = [];
+
+            periodData.push([quarterLabel]);
+            periodData.push([]);
+            periodData.push(['Equipa', 'Produto', 'Receita (€)', 'Lucro (€)', 'Clientes', 'Novos', 'Perdidos', 'Preço (€)', 'Desconto (%)', 'Marketing (€)']);
+
+            teamCodes.forEach(code => {
+                const team = teamsData[code];
+                if (!team) return;
+
+                team.products.forEach(product => {
+                    const period = product.periods[p];
+                    if (!period) return;
+
+                    const d = period.decisions;
+                    const data = period.data;
+
+                    periodData.push([
+                        team.name,
+                        product.name,
+                        data.revenue.toFixed(2),
+                        data.profit.toFixed(2),
+                        data.customerBase,
+                        data.newCustomers,
+                        data.lostCustomers,
+                        d.price.toFixed(2),
+                        d.discount,
+                        d.marketingInvestment
+                    ]);
+                });
+            });
+
+            const wsPeriod = XLSX.utils.aoa_to_sheet(periodData);
+            // Nome da sheet limitado a 31 caracteres no Excel
+            const sheetName = `T${this.getQuarterNumber(periodNum)}-${CONFIG.START_YEAR + Math.floor((periodNum - 1) / 4)}`;
+            XLSX.utils.book_append_sheet(wb, wsPeriod, sheetName);
+        }
+
+        // ===== SHEET 3: RESUMO COMPARATIVO =====
+        const resumo = [];
+        resumo.push(['RESUMO COMPARATIVO - TODAS AS EQUIPAS']);
+        resumo.push([]);
+        resumo.push(['Equipa', 'Receita Total', 'Receita Média/Período', 'Lucro Total', 'Lucro Médio/Período', 'Clientes Finais', 'Taxa Crescimento Clientes']);
+
+        teamCodes.forEach(code => {
+            const team = teamsData[code];
+            if (!team) return;
+
+            let totalRevenue = 0;
+            let totalProfit = 0;
+            let totalCustomers = 0;
+            let initialCustomers = 0;
+
+            team.products.forEach(product => {
+                product.periods.forEach((period, index) => {
+                    totalRevenue += period.data.revenue;
+                    totalProfit += period.data.profit;
+                    if (index === 0) initialCustomers += period.data.customerBase;
+                });
+                const lastPeriod = product.periods[product.periods.length - 1];
+                totalCustomers += lastPeriod.data.customerBase;
+            });
+
+            const numPeriods = team.products[0].periods.length;
+            const avgRevenue = totalRevenue / numPeriods;
+            const avgProfit = totalProfit / numPeriods;
+            const growthRate = ((totalCustomers - initialCustomers) / initialCustomers * 100).toFixed(2);
+
+            resumo.push([
+                team.name,
+                totalRevenue.toFixed(2),
+                avgRevenue.toFixed(2),
+                totalProfit.toFixed(2),
+                avgProfit.toFixed(2),
+                totalCustomers,
+                growthRate + '%'
+            ]);
+        });
+
+        const wsResumo = XLSX.utils.aoa_to_sheet(resumo);
+        XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo Comparativo');
+
+        // ===== EXPORTAR FICHEIRO =====
+        const timestamp = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `Desempenho_Equipas_${timestamp}.xlsx`);
+    }
+
+    downloadJSON(data, filename) {
+        const content = JSON.stringify(data, null, 2);
+        const blob = new Blob([content], { type: 'application/json' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // ===== FORMATAÇÃO =====
+    formatCurrency(value) {
+        return new Intl.NumberFormat('pt-PT', {
+            style: 'currency',
+            currency: 'EUR'
+        }).format(value);
+    }
+
+    // ===== EVENT LISTENERS =====
+    setupEventListeners() {
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const teamCode = document.getElementById('teamCode').value;
+            this.loginTeam(teamCode);
+        });
+
+        document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const password = document.getElementById('adminPassword').value;
+            this.loginAdmin(password);
+        });
+
+        document.getElementById('decisionsForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            this.submitDecisions(formData);
+        });
+
+        document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newPassword = document.getElementById('newPassword').value;
+            this.changePassword(newPassword);
+        });
+    }
+
+    checkInitialState() {
+        const hasPassword = localStorage.getItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD);
+        if (!hasPassword) {
+            localStorage.setItem(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, CONFIG.DEFAULT_ADMIN_PASSWORD);
+        }
+    }
+}
+
+// ===== INICIALIZAÇÃO =====
+let app;
+
+document.addEventListener('DOMContentLoaded', () => {
+    app = new SimulatorApp();
+});

@@ -1138,13 +1138,12 @@ class SimulatorApp {
                 if (data.adChannelPerformance) {
                     channelTablesHTML += `
                         <div class="channel-performance" style="margin-top: 16px;">
-                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">📢 Performance por Canal de Publicidade</h5>
+                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">📢 Dados por Canal de Publicidade</h5>
                             <table class="channel-table" style="font-size: 12px;">
                                 <tr>
                                     <th>Canal</th>
-                                    <th>Investimento</th>
-                                    <th>Clientes</th>
-                                    <th>CAC</th>
+                                    <th>Investimento (€)</th>
+                                    <th>Clientes Adquiridos</th>
                                 </tr>`;
 
                     Object.keys(data.adChannelPerformance).forEach(channelId => {
@@ -1155,7 +1154,6 @@ class SimulatorApp {
                                 <td>${channelName}</td>
                                 <td>${this.formatCurrency(ch.investment)}</td>
                                 <td>${ch.customersAcquired}</td>
-                                <td>${this.formatCurrency(ch.cac)}</td>
                             </tr>`;
                     });
 
@@ -1166,13 +1164,12 @@ class SimulatorApp {
                 if (data.distributionPerformance) {
                     channelTablesHTML += `
                         <div class="channel-performance" style="margin-top: 16px;">
-                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">🏪 Performance por Canal de Distribuição</h5>
+                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">🏪 Dados por Canal de Distribuição</h5>
                             <table class="channel-table" style="font-size: 12px;">
                                 <tr>
                                     <th>Canal</th>
-                                    <th>Unidades</th>
-                                    <th>Receita</th>
-                                    <th>Margem</th>
+                                    <th>Unidades Vendidas</th>
+                                    <th>Receita (€)</th>
                                 </tr>`;
 
                     Object.keys(data.distributionPerformance).forEach(channelId => {
@@ -1183,7 +1180,6 @@ class SimulatorApp {
                                 <td>${channelName}</td>
                                 <td>${ch.unitsSold}</td>
                                 <td>${this.formatCurrency(ch.revenue)}</td>
-                                <td>${this.formatCurrency(ch.margin)}</td>
                             </tr>`;
                     });
 

@@ -22,7 +22,8 @@ const CONFIG = {
         SIMULATION_DATA: 'simulationData',
         TEAMS_DATA: 'teamsData',
         TEAM_CODES: 'teamCodes',
-        SESSION: 'currentSession'
+        SESSION: 'currentSession',
+        ACCESS_LOGS: 'accessLogs'
     },
     // Sazonalidade por trimestre e tipo de produto
     SEASONALITY: {
@@ -112,7 +113,8 @@ class FirebaseSyncManager {
             CONFIG.STORAGE_KEYS.ADMIN_PASSWORD,
             CONFIG.STORAGE_KEYS.SIMULATION_DATA,
             CONFIG.STORAGE_KEYS.TEAMS_DATA,
-            CONFIG.STORAGE_KEYS.TEAM_CODES
+            CONFIG.STORAGE_KEYS.TEAM_CODES,
+            CONFIG.STORAGE_KEYS.ACCESS_LOGS
         ];
         this.init();
     }
@@ -334,6 +336,10 @@ class SimulatorApp {
         this.currentUser = teamCode;
         this.isAdmin = false;
         this.saveSession();
+
+        // Registar acesso
+        this.addAccessLog('team', teamCode, teamData.name);
+
         this.showScreen('dashboardScreen');
         this.loadDashboard();
     }
@@ -357,6 +363,10 @@ class SimulatorApp {
 
         this.isAdmin = true;
         this.saveSession();
+
+        // Registar acesso
+        this.addAccessLog('admin', 'Professor', 'Painel Administrativo');
+
         this.showScreen('adminScreen');
         this.loadAdminPanel();
     }
@@ -398,6 +408,32 @@ class SimulatorApp {
 
     saveTeamCodes(codes) {
         firebaseSync.save(CONFIG.STORAGE_KEYS.TEAM_CODES, codes);
+    }
+
+    // ===== ACCESS LOGS =====
+    getAccessLogs() {
+        const data = localStorage.getItem(CONFIG.STORAGE_KEYS.ACCESS_LOGS);
+        return data ? JSON.parse(data) : [];
+    }
+
+    addAccessLog(userType, identifier, teamName = null) {
+        const logs = this.getAccessLogs();
+        const newLog = {
+            timestamp: new Date().toISOString(),
+            userType: userType, // 'admin' ou 'team'
+            identifier: identifier, // teamCode ou 'admin'
+            teamName: teamName,
+            date: new Date().toLocaleString('pt-PT')
+        };
+
+        logs.unshift(newLog); // Adiciona no início (mais recente primeiro)
+
+        // Manter apenas últimos 100 logs
+        if (logs.length > 100) {
+            logs.pop();
+        }
+
+        firebaseSync.save(CONFIG.STORAGE_KEYS.ACCESS_LOGS, logs);
     }
 
     // ===== INICIALIZAÇÃO =====
@@ -1740,11 +1776,15 @@ class SimulatorApp {
 
             // Mostrar submissões
             this.loadSubmissionsStatus();
+
+            // Mostrar logs de acesso
+            this.loadAccessLogs();
         } else {
             document.getElementById('adminCurrentPeriod').textContent = '-';
             document.getElementById('adminState').textContent = 'Não Inicializado';
             document.getElementById('teamCodesList').innerHTML = '<p>Inicialize a simulação primeiro</p>';
             document.getElementById('submissionsStatus').innerHTML = '<p class="info-text">Inicialize a simulação primeiro</p>';
+            document.getElementById('accessLogsContainer').innerHTML = '<p class="info-text">Inicialize a simulação primeiro</p>';
         }
     }
 
@@ -1943,6 +1983,42 @@ class SimulatorApp {
         </div>`;
 
         document.body.insertAdjacentHTML('beforeend', detailsHTML);
+    }
+
+    loadAccessLogs() {
+        const logs = this.getAccessLogs();
+        const container = document.getElementById('accessLogsContainer');
+
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="info-text">Nenhum acesso registado ainda</p>';
+            return;
+        }
+
+        let logsHTML = '<div class="access-logs-table">';
+        logsHTML += '<table style="width: 100%; border-collapse: collapse;">';
+        logsHTML += '<thead><tr>';
+        logsHTML += '<th style="text-align: left; padding: 12px; border-bottom: 2px solid var(--border); font-weight: 600;">Data/Hora</th>';
+        logsHTML += '<th style="text-align: left; padding: 12px; border-bottom: 2px solid var(--border); font-weight: 600;">Tipo</th>';
+        logsHTML += '<th style="text-align: left; padding: 12px; border-bottom: 2px solid var(--border); font-weight: 600;">Utilizador</th>';
+        logsHTML += '<th style="text-align: left; padding: 12px; border-bottom: 2px solid var(--border); font-weight: 600;">Código/Nome</th>';
+        logsHTML += '</tr></thead><tbody>';
+
+        logs.forEach(log => {
+            const typeIcon = log.userType === 'admin' ? '👨‍🏫' : '👥';
+            const typeBadge = log.userType === 'admin'
+                ? '<span style="background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">PROFESSOR</span>'
+                : '<span style="background: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">EQUIPA</span>';
+
+            logsHTML += '<tr style="border-bottom: 1px solid var(--border);">';
+            logsHTML += `<td style="padding: 12px; font-size: 13px;">${log.date}</td>`;
+            logsHTML += `<td style="padding: 12px;">${typeIcon} ${typeBadge}</td>`;
+            logsHTML += `<td style="padding: 12px; font-weight: 600;">${log.teamName || '-'}</td>`;
+            logsHTML += `<td style="padding: 12px; font-family: monospace; font-size: 12px; color: var(--text-secondary);">${log.identifier}</td>`;
+            logsHTML += '</tr>';
+        });
+
+        logsHTML += '</tbody></table></div>';
+        container.innerHTML = logsHTML;
     }
 
     advancePeriod() {

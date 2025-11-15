@@ -1180,6 +1180,86 @@ button {
     border-bottom: 2px solid #93c5fd;
 }
 
+/* ===== CANAIS ===== */
+.channel-section {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1.5px dashed var(--border);
+}
+
+.channel-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+}
+
+.channel-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 16px 0;
+    font-style: italic;
+}
+
+.channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+}
+
+.channel-input {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.channel-input label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.channel-input input {
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.channel-input input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.channel-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+}
+
+.channel-table th,
+.channel-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.channel-table th {
+    background: var(--bg);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.channel-table tr:hover {
+    background: var(--bg);
+}
+
 /* ===== TEAM CODES GRID ===== */
 .team-codes-grid {
     display: grid;

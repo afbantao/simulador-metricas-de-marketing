@@ -999,6 +999,35 @@ class SimulatorApp {
                 document.getElementById(`marketing_${product.id}`).value = lastDecisions.marketingInvestment;
                 document.getElementById(`quality_${product.id}`).value = lastDecisions.qualityInvestment || 3500;
                 document.getElementById(`commission_${product.id}`).value = lastDecisions.salesCommission || 5;
+
+                // Preencher canais de publicidade
+                if (lastDecisions.adChannels) {
+                    Object.keys(CONFIG.AD_CHANNELS).forEach(channelId => {
+                        const value = lastDecisions.adChannels[channelId] || 20;
+                        document.getElementById(`adChannel_${channelId}_${product.id}`).value = value;
+                    });
+                } else {
+                    // Valores default se não existirem
+                    document.getElementById(`adChannel_googleAds_${product.id}`).value = 25;
+                    document.getElementById(`adChannel_facebook_${product.id}`).value = 30;
+                    document.getElementById(`adChannel_instagram_${product.id}`).value = 20;
+                    document.getElementById(`adChannel_email_${product.id}`).value = 15;
+                    document.getElementById(`adChannel_radio_${product.id}`).value = 10;
+                }
+
+                // Preencher canais de distribuição
+                if (lastDecisions.distributionChannels) {
+                    Object.keys(CONFIG.DISTRIBUTION_CHANNELS).forEach(channelId => {
+                        const value = lastDecisions.distributionChannels[channelId] || 25;
+                        document.getElementById(`distChannel_${channelId}_${product.id}`).value = value;
+                    });
+                } else {
+                    // Valores default se não existirem
+                    document.getElementById(`distChannel_ownStores_${product.id}`).value = 30;
+                    document.getElementById(`distChannel_retailers_${product.id}`).value = 40;
+                    document.getElementById(`distChannel_ecommerce_${product.id}`).value = 20;
+                    document.getElementById(`distChannel_wholesalers_${product.id}`).value = 10;
+                }
             });
 
             // Decisões globais (valores default)
@@ -1092,6 +1121,64 @@ class SimulatorApp {
                 const d = periodData.decisions;
                 const data = periodData.data;
 
+                let channelTablesHTML = '';
+
+                // Tabela de canais de publicidade (se existir)
+                if (data.adChannelPerformance) {
+                    channelTablesHTML += `
+                        <div class="channel-performance" style="margin-top: 16px;">
+                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">📢 Performance por Canal de Publicidade</h5>
+                            <table class="channel-table" style="font-size: 12px;">
+                                <tr>
+                                    <th>Canal</th>
+                                    <th>Investimento</th>
+                                    <th>Clientes</th>
+                                    <th>CAC</th>
+                                </tr>`;
+
+                    Object.keys(data.adChannelPerformance).forEach(channelId => {
+                        const ch = data.adChannelPerformance[channelId];
+                        const channelName = CONFIG.AD_CHANNELS[channelId].name;
+                        channelTablesHTML += `
+                            <tr>
+                                <td>${channelName}</td>
+                                <td>${this.formatCurrency(ch.investment)}</td>
+                                <td>${ch.customersAcquired}</td>
+                                <td>${this.formatCurrency(ch.cac)}</td>
+                            </tr>`;
+                    });
+
+                    channelTablesHTML += `</table></div>`;
+                }
+
+                // Tabela de canais de distribuição (se existir)
+                if (data.distributionPerformance) {
+                    channelTablesHTML += `
+                        <div class="channel-performance" style="margin-top: 16px;">
+                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">🏪 Performance por Canal de Distribuição</h5>
+                            <table class="channel-table" style="font-size: 12px;">
+                                <tr>
+                                    <th>Canal</th>
+                                    <th>Unidades</th>
+                                    <th>Receita</th>
+                                    <th>Margem</th>
+                                </tr>`;
+
+                    Object.keys(data.distributionPerformance).forEach(channelId => {
+                        const ch = data.distributionPerformance[channelId];
+                        const channelName = CONFIG.DISTRIBUTION_CHANNELS[channelId].name;
+                        channelTablesHTML += `
+                            <tr>
+                                <td>${channelName}</td>
+                                <td>${ch.unitsSold}</td>
+                                <td>${this.formatCurrency(ch.revenue)}</td>
+                                <td>${this.formatCurrency(ch.margin)}</td>
+                            </tr>`;
+                    });
+
+                    channelTablesHTML += `</table></div>`;
+                }
+
                 productsHTML += `
                     <div class="product-history">
                         <h4>${product.name}</h4>
@@ -1099,10 +1186,11 @@ class SimulatorApp {
                             <div class="history-item"><span>Receita</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
                             <div class="history-item"><span>Lucro</span><strong>${this.formatCurrency(data.profit)}</strong></div>
                             <div class="history-item"><span>Clientes</span><strong>${data.customerBase.toLocaleString('pt-PT')}</strong></div>
+                            <div class="history-item"><span>Novos</span><strong>${data.newCustomers.toLocaleString('pt-PT')}</strong></div>
                             <div class="history-item"><span>Preço</span><strong>${this.formatCurrency(d.price)}</strong></div>
-                            <div class="history-item"><span>Desconto</span><strong>${d.discount}%</strong></div>
                             <div class="history-item"><span>Marketing</span><strong>${this.formatCurrency(d.marketingInvestment)}</strong></div>
                         </div>
+                        ${channelTablesHTML}
                     </div>
                 `;
             });
@@ -1268,9 +1356,72 @@ class SimulatorApp {
                             <strong>${d.salesCommission.toFixed(1)}%</strong>
                         </div>
                     </div>
+
+                    ${d.adChannels ? `
+                    <h4 style="margin-top: 20px;">📢 Canais de Publicidade</h4>
+                    <table class="channel-table">
+                        <tr>
+                            <th>Canal</th>
+                            <th>% Orçamento</th>
+                        </tr>
+                        <tr><td>Google Ads</td><td>${d.adChannels.googleAds}%</td></tr>
+                        <tr><td>Facebook Ads</td><td>${d.adChannels.facebook}%</td></tr>
+                        <tr><td>Instagram Ads</td><td>${d.adChannels.instagram}%</td></tr>
+                        <tr><td>Email Marketing</td><td>${d.adChannels.email}%</td></tr>
+                        <tr><td>Rádio/TV</td><td>${d.adChannels.radio}%</td></tr>
+                    </table>
+                    ` : ''}
+
+                    ${d.distributionChannels ? `
+                    <h4 style="margin-top: 20px;">🏪 Canais de Distribuição</h4>
+                    <table class="channel-table">
+                        <tr>
+                            <th>Canal</th>
+                            <th>% Vendas</th>
+                        </tr>
+                        <tr><td>Lojas Próprias</td><td>${d.distributionChannels.ownStores}%</td></tr>
+                        <tr><td>Retalhistas</td><td>${d.distributionChannels.retailers}%</td></tr>
+                        <tr><td>E-commerce</td><td>${d.distributionChannels.ecommerce}%</td></tr>
+                        <tr><td>Grossistas</td><td>${d.distributionChannels.wholesalers}%</td></tr>
+                    </table>
+                    ` : ''}
                 </div>
             `;
         });
+
+        // Adicionar decisões globais
+        const firstProduct = teamData.products[0];
+        const periodData = firstProduct.periods.find(p => p.period === period);
+
+        if (periodData && periodData.data) {
+            detailsHTML += `
+                <div class="product-decisions">
+                    <h3>🏢 Decisões Globais da Empresa</h3>
+                    <div class="decisions-grid">
+                        <div class="decision-item">
+                            <span>Fidelização:</span>
+                            <strong>${teamData.globalData && teamData.globalData.retentionInvestment ? this.formatCurrency(teamData.globalData.retentionInvestment) : '-'}</strong>
+                        </div>
+                        <div class="decision-item">
+                            <span>Marca Corporativa:</span>
+                            <strong>${teamData.globalData && teamData.globalData.brandInvestment ? this.formatCurrency(teamData.globalData.brandInvestment) : '-'}</strong>
+                        </div>
+                        <div class="decision-item">
+                            <span>Serviço ao Cliente:</span>
+                            <strong>${teamData.globalData && teamData.globalData.customerService ? this.formatCurrency(teamData.globalData.customerService) : '-'}</strong>
+                        </div>
+                        <div class="decision-item">
+                            <span>Prazo de Crédito:</span>
+                            <strong>${teamData.globalData && teamData.globalData.creditDays ? teamData.globalData.creditDays + ' dias' : '-'}</strong>
+                        </div>
+                        <div class="decision-item">
+                            <span>Melhoria de Processos:</span>
+                            <strong>${teamData.globalData && teamData.globalData.processImprovement ? this.formatCurrency(teamData.globalData.processImprovement) : '-'}</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
         detailsHTML += `
                 <button onclick="this.closest('.modal-overlay').remove()" class="btn-primary">Fechar</button>

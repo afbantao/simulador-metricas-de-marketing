@@ -346,13 +346,9 @@ class SimulatorApp {
             try {
                 correctPassword = JSON.parse(storedPasswordData);
             } catch (e) {
-                console.error('Erro ao fazer parse da password:', e);
                 correctPassword = CONFIG.DEFAULT_ADMIN_PASSWORD;
             }
         }
-
-        console.log('Password digitada:', password);
-        console.log('Password correta:', correctPassword);
 
         if (password !== correctPassword) {
             alert('Palavra-passe incorreta!');
@@ -2254,15 +2250,12 @@ class SimulatorApp {
 
         // Se não existe password OU está vazia, criar a default
         if (!passwordData) {
-            console.log('Criando password default:', CONFIG.DEFAULT_ADMIN_PASSWORD);
             firebaseSync.save(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, CONFIG.DEFAULT_ADMIN_PASSWORD);
         } else {
             try {
-                const password = JSON.parse(passwordData);
-                console.log('Password carregada do Firebase:', password);
+                JSON.parse(passwordData);
             } catch (e) {
                 // Se houver erro ao fazer parse, recriar
-                console.log('Erro ao carregar password, recriando...');
                 firebaseSync.save(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, CONFIG.DEFAULT_ADMIN_PASSWORD);
             }
         }

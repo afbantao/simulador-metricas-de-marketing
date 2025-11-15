@@ -1000,53 +1000,8 @@ class SimulatorApp {
             alert.textContent = '⚠ Submeta as suas decisões para ' + quarterLabel;
             form.style.display = 'block';
 
-            // Preencher com valores anteriores
-            teamData.products.forEach(product => {
-                const lastPeriod = product.periods[product.periods.length - 1];
-                const lastDecisions = lastPeriod.decisions;
-
-                document.getElementById(`price_${product.id}`).value = lastDecisions.price;
-                document.getElementById(`discount_${product.id}`).value = lastDecisions.discount || 0;
-                document.getElementById(`marketing_${product.id}`).value = lastDecisions.marketingInvestment;
-                document.getElementById(`quality_${product.id}`).value = lastDecisions.qualityInvestment || 3500;
-                document.getElementById(`commission_${product.id}`).value = lastDecisions.salesCommission || 5;
-
-                // Preencher canais de publicidade
-                if (lastDecisions.adChannels) {
-                    Object.keys(CONFIG.AD_CHANNELS).forEach(channelId => {
-                        const value = lastDecisions.adChannels[channelId] || 20;
-                        document.getElementById(`adChannel_${channelId}_${product.id}`).value = value;
-                    });
-                } else {
-                    // Valores default se não existirem
-                    document.getElementById(`adChannel_googleAds_${product.id}`).value = 25;
-                    document.getElementById(`adChannel_facebook_${product.id}`).value = 30;
-                    document.getElementById(`adChannel_instagram_${product.id}`).value = 20;
-                    document.getElementById(`adChannel_email_${product.id}`).value = 15;
-                    document.getElementById(`adChannel_radio_${product.id}`).value = 10;
-                }
-
-                // Preencher canais de distribuição
-                if (lastDecisions.distributionChannels) {
-                    Object.keys(CONFIG.DISTRIBUTION_CHANNELS).forEach(channelId => {
-                        const value = lastDecisions.distributionChannels[channelId] || 25;
-                        document.getElementById(`distChannel_${channelId}_${product.id}`).value = value;
-                    });
-                } else {
-                    // Valores default se não existirem
-                    document.getElementById(`distChannel_ownStores_${product.id}`).value = 30;
-                    document.getElementById(`distChannel_retailers_${product.id}`).value = 40;
-                    document.getElementById(`distChannel_ecommerce_${product.id}`).value = 20;
-                    document.getElementById(`distChannel_wholesalers_${product.id}`).value = 10;
-                }
-            });
-
-            // Decisões globais (valores default)
-            document.getElementById('retentionInvestment').value = 8000;
-            document.getElementById('brandInvestment').value = 5000;
-            document.getElementById('customerService').value = 6000;
-            document.getElementById('creditDays').value = 30;
-            document.getElementById('processImprovement').value = 4000;
+            // Limpar todos os campos (não preencher valores para não influenciar decisões)
+            form.reset();
         }
     }
 

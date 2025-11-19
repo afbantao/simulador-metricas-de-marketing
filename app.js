@@ -1134,7 +1134,7 @@ class SimulatorApp {
                             <h3>Receitas</h3>
                             <div class="data-row"><span>Receita Total</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
                             <div class="data-row"><span>Unidades Vendidas</span><strong>${data.unitsSold.toLocaleString('pt-PT')}</strong></div>
-                            <div class="data-row"><span>Preço Unitário</span><strong>${this.formatCurrency(data.unitPrice)}</strong></div>
+                            <div class="data-row"><span>Preço Unitário</span><strong>${this.formatCurrency(latestPeriod.decisions.price)}</strong></div>
                             <div class="data-row"><span>Desconto</span><strong>${data.appliedDiscount}%</strong></div>
                         </div>
                         <div class="data-card">

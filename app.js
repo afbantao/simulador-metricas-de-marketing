@@ -1087,7 +1087,7 @@ class SimulatorApp {
                     </div>
                     <div class="stat-item">
                         <span>Preço</span>
-                        <strong>${this.formatCurrency(data.unitPrice)}</strong>
+                        <strong>${this.formatCurrency(latestPeriod.decisions.price)}</strong>
                     </div>
                 </div>
                 <button onclick="app.showProductDetails('${product.id}')" class="btn-secondary">Ver Detalhes</button>

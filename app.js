@@ -2290,16 +2290,17 @@ class SimulatorApp {
                                     <small>(Produção + Distribuição + Comissões)</small>
                                 </div>
                                 <div class="bep-item">
-                                    <span>Preço Médio Venda</span>
+                                    <span>Preço Médio de Venda</span>
                                     <strong>${this.formatCurrency(precoMedioVenda)}</strong>
                                 </div>
                                 <div class="bep-item">
-                                    <span>Margem Contribuição Unit.</span>
+                                    <span>Margem de Contribuição Unitária</span>
                                     <strong>${this.formatCurrency(margemContribuicao)}</strong>
                                 </div>
                                 <div class="bep-item total">
-                                    <span>BEP = CF ÷ MC</span>
+                                    <span>Break-Even Point</span>
                                     <strong>${breakEvenPoint.toLocaleString('pt-PT')} unidades</strong>
+                                    <small>(Custos Fixos Totais ÷ Margem de Contribuição Unitária)</small>
                                 </div>
                             </div>
                         </div>
@@ -2449,9 +2450,9 @@ class SimulatorApp {
 
             sheetData.push(['ESTIMATIVA BREAK-EVEN POINT']);
             sheetData.push(['Custos Fixos Totais (Produção + Marketing + Qualidade)', custosFixosTotais]);
-            sheetData.push(['Custo Var. Unit. Total (Produção + Distribuição + Comissões)', custoVarUnitTotal]);
-            sheetData.push(['Preço Médio Venda', precoMedioVenda]);
-            sheetData.push(['Margem Contribuição Unitária', margemContribuicao]);
+            sheetData.push(['Custo Variável Unitário Total (Produção + Distribuição + Comissões)', custoVarUnitTotal]);
+            sheetData.push(['Preço Médio de Venda', precoMedioVenda]);
+            sheetData.push(['Margem de Contribuição Unitária', margemContribuicao]);
             sheetData.push(['Break-Even Point (unidades)', breakEvenPoint]);
             sheetData.push([]);
 

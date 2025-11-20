@@ -2128,59 +2128,6 @@ class SimulatorApp {
                 const d = periodData.decisions;
                 const data = periodData.data;
 
-                let channelTablesHTML = '';
-
-                // Tabela de canais de publicidade (se existir)
-                if (data.adChannelPerformance) {
-                    channelTablesHTML += `
-                        <div class="channel-performance" style="margin-top: 16px;">
-                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">📢 Dados por Canal de Publicidade</h5>
-                            <table class="channel-table" style="font-size: 12px;">
-                                <tr>
-                                    <th>Canal</th>
-                                    <th>Investimento (€)</th>
-                                    <th>Clientes Adquiridos</th>
-                                </tr>`;
-
-                    Object.keys(data.adChannelPerformance).forEach(channelId => {
-                        const ch = data.adChannelPerformance[channelId];
-                        const channelName = CONFIG.AD_CHANNELS[channelId].name;
-                        channelTablesHTML += `
-                            <tr>
-                                <td>${channelName}</td>
-                                <td>${this.formatCurrency(ch.investment)}</td>
-                                <td>${ch.customersAcquired}</td>
-                            </tr>`;
-                    });
-
-                    channelTablesHTML += `</table></div>`;
-                }
-
-                // Tabela de canais de distribuição (se existir)
-                if (data.distributionPerformance) {
-                    channelTablesHTML += `
-                        <div class="channel-performance" style="margin-top: 16px;">
-                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">🏪 Dados por Canal de Distribuição</h5>
-                            <table class="channel-table" style="font-size: 12px;">
-                                <tr>
-                                    <th>Canal</th>
-                                    <th>Unidades Vendidas</th>
-                                    <th>Receita (€)</th>
-                                </tr>`;
-
-                    Object.keys(data.distributionPerformance).forEach(channelId => {
-                        const ch = data.distributionPerformance[channelId];
-                        const channelName = CONFIG.DISTRIBUTION_CHANNELS[channelId].name;
-                        channelTablesHTML += `
-                            <tr>
-                                <td>${channelName}</td>
-                                <td>${ch.unitsSold}</td>
-                                <td>${this.formatCurrency(ch.revenue)}</td>
-                            </tr>`;
-                    });
-
-                    channelTablesHTML += `</table></div>`;
-                }
 
                 // Decisões tomadas
                 let decisionsHTML = `
@@ -2234,9 +2181,69 @@ class SimulatorApp {
                 const margemContribuicao = precoMedioVenda - custoVarUnitTotal;
                 const breakEvenPoint = Math.ceil(custosFixosTotais / margemContribuicao);
 
+                // Separar tabelas de canais em decisões (%) e resultados (valores)
+                let channelDecisionsHTML = '';
+                let channelResultsHTML = '';
+
+                // Tabela de canais de publicidade - Resultados
+                if (data.adChannelPerformance) {
+                    channelResultsHTML += `
+                        <div class="channel-performance" style="margin-top: 16px;">
+                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">📢 Resultados por Canal de Publicidade</h5>
+                            <table class="channel-table" style="font-size: 12px;">
+                                <tr>
+                                    <th>Canal</th>
+                                    <th>Investimento (€)</th>
+                                    <th>Clientes Adquiridos</th>
+                                </tr>`;
+
+                    Object.keys(data.adChannelPerformance).forEach(channelId => {
+                        const ch = data.adChannelPerformance[channelId];
+                        const channelName = CONFIG.AD_CHANNELS[channelId].name;
+                        channelResultsHTML += `
+                            <tr>
+                                <td>${channelName}</td>
+                                <td>${this.formatCurrency(ch.investment)}</td>
+                                <td>${ch.customersAcquired}</td>
+                            </tr>`;
+                    });
+
+                    channelResultsHTML += `</table></div>`;
+                }
+
+                // Tabela de canais de distribuição - Resultados
+                if (data.distributionPerformance) {
+                    channelResultsHTML += `
+                        <div class="channel-performance" style="margin-top: 16px;">
+                            <h5 style="font-size: 14px; margin: 0 0 8px 0;">🏪 Resultados por Canal de Distribuição</h5>
+                            <table class="channel-table" style="font-size: 12px;">
+                                <tr>
+                                    <th>Canal</th>
+                                    <th>Unidades Vendidas</th>
+                                    <th>Receita (€)</th>
+                                </tr>`;
+
+                    Object.keys(data.distributionPerformance).forEach(channelId => {
+                        const ch = data.distributionPerformance[channelId];
+                        const channelName = CONFIG.DISTRIBUTION_CHANNELS[channelId].name;
+                        channelResultsHTML += `
+                            <tr>
+                                <td>${channelName}</td>
+                                <td>${ch.unitsSold}</td>
+                                <td>${this.formatCurrency(ch.revenue)}</td>
+                            </tr>`;
+                    });
+
+                    channelResultsHTML += `</table></div>`;
+                }
+
                 productsHTML += `
                     <div class="product-history">
                         <h4>${product.name}</h4>
+
+                        <div class="history-section decisions-section">
+                            ${decisionsHTML}
+                        </div>
 
                         <div class="history-section results-section">
                             <h5 class="section-title">📈 Resultados</h5>
@@ -2248,6 +2255,11 @@ class SimulatorApp {
                                 <div class="history-item"><span>Perdidos</span><strong>${data.lostCustomers.toLocaleString('pt-PT')}</strong></div>
                                 <div class="history-item"><span>Unidades</span><strong>${data.unitsSold.toLocaleString('pt-PT')}</strong></div>
                             </div>
+                        </div>
+
+                        <div class="history-section channels-results-section">
+                            <h5 class="section-title">📊 Resultados por Canal</h5>
+                            ${channelResultsHTML}
                         </div>
 
                         <div class="history-section costs-section">
@@ -2303,14 +2315,6 @@ class SimulatorApp {
                                     <small>(Custos Fixos Totais ÷ Margem de Contribuição Unitária)</small>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="history-section decisions-section">
-                            ${decisionsHTML}
-                        </div>
-
-                        <div class="history-section channels-section">
-                            ${channelTablesHTML}
                         </div>
                     </div>
                 `;

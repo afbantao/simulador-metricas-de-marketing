@@ -1030,7 +1030,8 @@ class SimulatorApp {
 
         // Sazonalidade
         const quarter = this.getQuarterNumber(previousPeriod.period + 1);
-        const seasonality = CONFIG.SEASONALITY[quarter];
+        const seasonality = CONFIG.SEASONALITY[quarter][productType];
+        const seasonalityNames = { 1: 'Pós-Natal', 2: 'Primavera', 3: 'Verão', 4: 'Natal' };
 
         // Preço base
         const basePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
@@ -1059,7 +1060,7 @@ class SimulatorApp {
             numTeams: numTeams,
 
             // Factores competitivos
-            seasonality: seasonality,
+            seasonality: { ...seasonality, name: seasonalityNames[quarter] },
             basePrice: basePrice,
             priceCompetitiveness: priceCompetitiveness,
             priceAdvantage: priceAdvantage,

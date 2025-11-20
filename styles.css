@@ -219,6 +219,18 @@ button {
     box-shadow: var(--shadow);
 }
 
+.btn-warning {
+    background: #f59e0b;
+    color: white;
+    padding: 12px 24px;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
 .btn-ghost {
     background: transparent;
     color: var(--text-secondary);

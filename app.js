@@ -881,6 +881,51 @@ class SimulatorApp {
     }
 
     // ===== SIMULAÇÃO COMPETITIVA =====
+
+    // Reverter submissões do período atual para estado pendente
+    // (útil para submissões feitas antes da implementação do sistema de simulação diferida)
+    revertCurrentPeriodSubmissions() {
+        const simData = this.getSimulationData();
+        if (!simData || !simData.initialized) {
+            alert('Simulação não inicializada!');
+            return;
+        }
+
+        const currentPeriod = simData.currentPeriod;
+        const teamCodes = this.getTeamCodes();
+        const teamsData = this.getAllTeamsData();
+
+        if (!confirm(`Isto irá reverter todas as submissões do ${this.getQuarterLabel(currentPeriod)} para o estado pendente.\n\nAs decisões serão mantidas, mas os resultados calculados serão apagados.\n\nContinuar?`)) {
+            return;
+        }
+
+        let revertedCount = 0;
+
+        teamCodes.forEach(code => {
+            const teamData = teamsData[code];
+            if (!teamData) return;
+
+            teamData.products.forEach(product => {
+                const periodIndex = product.periods.findIndex(p => p.period === currentPeriod);
+                if (periodIndex === -1) return;
+
+                const periodData = product.periods[periodIndex];
+
+                // Reverter para estado pendente
+                periodData.data = null;
+                periodData.status = 'pending';
+                delete periodData.simulatedAt;
+
+                revertedCount++;
+            });
+
+            this.saveTeamData(code, teamData);
+        });
+
+        alert(`${revertedCount / 3} equipa(s) revertida(s) para estado pendente.\n\nAgora pode correr a simulação quando todas as equipas tiverem submetido.`);
+        this.loadAdminPanel();
+    }
+
     runSimulation() {
         const simData = this.getSimulationData();
         if (!simData || !simData.initialized) {
@@ -1392,7 +1437,7 @@ class SimulatorApp {
         let totalCustomers = 0;
         let totalProfit = 0;
 
-        // Verificar se há resultados pendentes (aguardando simulação)
+        // Verificar se há resultados pendentes (a aguardar simulação)
         let hasPendingResults = false;
 
         teamData.products.forEach(product => {
@@ -1418,7 +1463,7 @@ class SimulatorApp {
                         <div class="pending-notice">
                             <span class="pending-icon">⏳</span>
                             <p>Decisões submetidas para ${this.getQuarterLabel(simData.currentPeriod)}</p>
-                            <p class="pending-text">Aguardando simulação do professor</p>
+                            <p class="pending-text">A aguardar simulação do professor</p>
                         </div>
                         <div class="product-stats previous-period">
                             <p class="previous-label">Dados do ${this.getQuarterLabel(latestPeriod.period - 1)}:</p>
@@ -1518,7 +1563,7 @@ class SimulatorApp {
                 <div class="modal-body">
                     <div class="pending-notice-modal">
                         <span class="pending-icon">⏳</span>
-                        <p>Aguardando simulação do trimestre</p>
+                        <p>A aguardar simulação do trimestre</p>
                     </div>
                     <div class="data-grid">
                         <div class="data-card">
@@ -1968,7 +2013,7 @@ class SimulatorApp {
                     <div class="notice-content">
                         <span class="notice-icon">⏳</span>
                         <div>
-                            <strong>Aguardando Simulação</strong>
+                            <strong>A Aguardar Simulação</strong>
                             <p>Os resultados deste trimestre serão calculados quando o professor correr a simulação.</p>
                         </div>
                     </div>

@@ -207,6 +207,18 @@ button {
     background: var(--danger-hover);
 }
 
+.btn-success {
+    background: #10b981;
+    color: white;
+    padding: 12px 24px;
+}
+
+.btn-success:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
 .btn-ghost {
     background: transparent;
     color: var(--text-secondary);
@@ -1276,6 +1288,101 @@ button {
     font-size: 18px;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+/* ===== PENDING RESULTS ===== */
+.product-summary-card.pending-results {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, var(--surface) 0%, rgba(245, 158, 11, 0.05) 100%);
+}
+
+.pending-notice {
+    text-align: center;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: var(--radius-sm);
+}
+
+.pending-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.pending-notice p {
+    margin: 4px 0;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.pending-text {
+    font-weight: 500;
+    color: #d97706 !important;
+}
+
+.previous-period {
+    opacity: 0.7;
+}
+
+.previous-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-style: italic;
+}
+
+.pending-simulation-notice {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    border: 1px solid #f59e0b;
+}
+
+.notice-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.notice-icon {
+    font-size: 28px;
+}
+
+.notice-content div {
+    flex: 1;
+}
+
+.notice-content strong {
+    display: block;
+    color: #92400e;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.notice-content p {
+    margin: 0;
+    font-size: 13px;
+    color: #b45309;
+}
+
+.pending-notice-modal {
+    text-align: center;
+    padding: 20px;
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+}
+
+.pending-notice-modal .pending-icon {
+    font-size: 40px;
+}
+
+.pending-notice-modal p {
+    margin: 8px 0 0 0;
+    font-weight: 500;
+    color: #d97706;
 }
 
 /* ===== DECISION SECTIONS ===== */

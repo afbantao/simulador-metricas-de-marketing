@@ -859,23 +859,16 @@ class SimulatorApp {
             };
 
             const productData = teamData.products.find(p => p.id === product.id);
-            const previousPeriod = productData.periods[productData.periods.length - 1];
 
-            const newPeriodData = this.calculateNewPeriodData(
-                previousPeriod,
-                productDecisions,
-                globalDecisions,
-                teamData.globalData,
-                currentPeriod,
-                product.type
-            );
-
+            // Guardar apenas as decisões, SEM calcular resultados
+            // Os resultados serão calculados quando o admin correr a simulação
             const newPeriod = {
                 period: currentPeriod,
                 decisions: productDecisions,
                 globalDecisions: globalDecisions,
-                data: newPeriodData,
-                submittedAt: new Date().toISOString()
+                data: null, // Resultados pendentes - serão calculados pelo admin
+                submittedAt: new Date().toISOString(),
+                status: 'pending' // Indica que aguarda simulação
             };
 
             productData.periods.push(newPeriod);
@@ -883,8 +876,346 @@ class SimulatorApp {
 
         this.saveTeamData(this.currentUser, teamData);
 
-        alert('Decisões submetidas com sucesso!');
+        alert('Decisões submetidas com sucesso!\n\nOs resultados estarão disponíveis após o professor correr a simulação do trimestre.');
         this.loadDashboard();
+    }
+
+    // ===== SIMULAÇÃO COMPETITIVA =====
+    runSimulation() {
+        const simData = this.getSimulationData();
+        if (!simData || !simData.initialized) {
+            alert('Simulação não inicializada!');
+            return;
+        }
+
+        const currentPeriod = simData.currentPeriod;
+        const teamCodes = this.getTeamCodes();
+        const teamsData = this.getAllTeamsData();
+
+        // Verificar se todas as equipas submeteram
+        let allSubmitted = true;
+        let pendingTeams = [];
+
+        teamCodes.forEach(code => {
+            const teamData = teamsData[code];
+            if (!teamData) return;
+
+            const hasSubmitted = teamData.products[0].periods.some(p => p.period === currentPeriod);
+            if (!hasSubmitted) {
+                allSubmitted = false;
+                pendingTeams.push(code);
+            }
+        });
+
+        if (!allSubmitted) {
+            const proceed = confirm(`Atenção: ${pendingTeams.length} equipa(s) ainda não submeteram decisões.\n\nDeseja correr a simulação mesmo assim?\n\nEquipas pendentes: ${pendingTeams.join(', ')}`);
+            if (!proceed) return;
+        }
+
+        // Recolher todas as decisões para calcular efeitos competitivos
+        const allDecisions = this.collectAllDecisions(teamCodes, teamsData, currentPeriod);
+
+        // Calcular métricas de mercado (médias, totais) para efeitos competitivos
+        const marketMetrics = this.calculateMarketMetrics(allDecisions);
+
+        // Calcular resultados para cada equipa considerando a competição
+        teamCodes.forEach(code => {
+            const teamData = teamsData[code];
+            if (!teamData) return;
+
+            // Verificar se tem decisões pendentes para este período
+            teamData.products.forEach(product => {
+                const periodIndex = product.periods.findIndex(p => p.period === currentPeriod);
+                if (periodIndex === -1) return; // Não submeteu
+
+                const periodData = product.periods[periodIndex];
+                if (periodData.data !== null && periodData.status !== 'pending') return; // Já calculado
+
+                const previousPeriod = product.periods[periodIndex - 1];
+
+                // Calcular resultados considerando a competição
+                const newPeriodData = this.calculateCompetitivePeriodData(
+                    previousPeriod,
+                    periodData.decisions,
+                    periodData.globalDecisions,
+                    teamData.globalData,
+                    currentPeriod,
+                    product.type,
+                    marketMetrics,
+                    allDecisions
+                );
+
+                // Atualizar com os resultados calculados
+                periodData.data = newPeriodData;
+                periodData.status = 'simulated';
+                periodData.simulatedAt = new Date().toISOString();
+            });
+
+            this.saveTeamData(code, teamData);
+        });
+
+        alert(`Simulação do ${this.getQuarterLabel(currentPeriod)} concluída!\n\nOs resultados estão agora disponíveis para todas as equipas.`);
+        this.loadAdminPanel();
+    }
+
+    collectAllDecisions(teamCodes, teamsData, period) {
+        const allDecisions = {};
+
+        teamCodes.forEach(code => {
+            const teamData = teamsData[code];
+            if (!teamData) return;
+
+            allDecisions[code] = {
+                products: {}
+            };
+
+            teamData.products.forEach(product => {
+                const periodData = product.periods.find(p => p.period === period);
+                if (periodData) {
+                    allDecisions[code].products[product.id] = {
+                        decisions: periodData.decisions,
+                        globalDecisions: periodData.globalDecisions
+                    };
+                }
+            });
+        });
+
+        return allDecisions;
+    }
+
+    calculateMarketMetrics(allDecisions) {
+        const metrics = {
+            products: {}
+        };
+
+        // Inicializar métricas por produto
+        CONFIG.PRODUCTS.forEach(product => {
+            metrics.products[product.id] = {
+                avgPrice: 0,
+                avgMarketing: 0,
+                avgQuality: 0,
+                avgDiscount: 0,
+                totalMarketing: 0,
+                teamCount: 0,
+                priceRange: { min: Infinity, max: 0 },
+                marketingRange: { min: Infinity, max: 0 }
+            };
+        });
+
+        // Calcular totais e médias
+        Object.values(allDecisions).forEach(teamDecisions => {
+            Object.entries(teamDecisions.products).forEach(([productId, data]) => {
+                const d = data.decisions;
+                const m = metrics.products[productId];
+
+                m.avgPrice += d.price;
+                m.avgMarketing += d.marketingInvestment;
+                m.avgQuality += d.qualityInvestment;
+                m.avgDiscount += d.discount;
+                m.totalMarketing += d.marketingInvestment;
+                m.teamCount++;
+
+                m.priceRange.min = Math.min(m.priceRange.min, d.price);
+                m.priceRange.max = Math.max(m.priceRange.max, d.price);
+                m.marketingRange.min = Math.min(m.marketingRange.min, d.marketingInvestment);
+                m.marketingRange.max = Math.max(m.marketingRange.max, d.marketingInvestment);
+            });
+        });
+
+        // Calcular médias
+        Object.values(metrics.products).forEach(m => {
+            if (m.teamCount > 0) {
+                m.avgPrice /= m.teamCount;
+                m.avgMarketing /= m.teamCount;
+                m.avgQuality /= m.teamCount;
+                m.avgDiscount /= m.teamCount;
+            }
+        });
+
+        return metrics;
+    }
+
+    calculateCompetitivePeriodData(previousPeriod, decisions, globalDecisions, globalData, periodNum, productType, marketMetrics, allDecisions) {
+        const prevData = previousPeriod.data;
+        const prevCustomers = prevData.customerBase;
+
+        // === SAZONALIDADE ===
+        const seasonality = this.getSeasonalityFactors(periodNum, productType);
+
+        // === MÉTRICAS DE MERCADO PARA ESTE PRODUTO ===
+        const productMetrics = marketMetrics.products[`produto${productType.charAt(0).toUpperCase()}${productType.slice(1)}`] ||
+                              marketMetrics.products[Object.keys(marketMetrics.products).find(k => k.toLowerCase().includes(productType))] ||
+                              { avgPrice: decisions.price, avgMarketing: decisions.marketingInvestment, avgQuality: decisions.qualityInvestment, totalMarketing: decisions.marketingInvestment, teamCount: 1 };
+
+        // === EFEITOS COMPETITIVOS ===
+        // Posição de preço relativa ao mercado (abaixo da média = vantagem)
+        const priceCompetitiveness = productMetrics.avgPrice > 0 ?
+            (productMetrics.avgPrice - decisions.price) / productMetrics.avgPrice : 0;
+        const priceAdvantage = 1 + (priceCompetitiveness * 0.3); // Até 30% mais/menos clientes
+
+        // Quota de marketing (share of voice)
+        const marketingShare = productMetrics.totalMarketing > 0 ?
+            decisions.marketingInvestment / productMetrics.totalMarketing : 1;
+        const expectedShare = 1 / Math.max(productMetrics.teamCount, 1);
+        const marketingAdvantage = marketingShare / expectedShare; // >1 = acima da média
+
+        // Vantagem de qualidade
+        const qualityAdvantage = productMetrics.avgQuality > 0 ?
+            1 + ((decisions.qualityInvestment - productMetrics.avgQuality) / productMetrics.avgQuality) * 0.2 : 1;
+
+        // === CANAIS DE PUBLICIDADE - Calcular clientes por canal ===
+        const adChannelPerformance = {};
+        let totalNewCustomers = 0;
+
+        Object.keys(CONFIG.AD_CHANNELS).forEach(channelId => {
+            const channel = CONFIG.AD_CHANNELS[channelId];
+            const channelPercentage = decisions.adChannels[channelId] / 100;
+            const channelInvestment = decisions.marketingInvestment * channelPercentage;
+
+            // Eficiência base do canal para este tipo de produto
+            const efficiency = channel.efficiency[productType] || 0.05;
+
+            // Clientes adquiridos = investimento × eficiência × sazonalidade × vantagem competitiva
+            const baseNewCustomers = channelInvestment * efficiency * seasonality.demand;
+            const competitiveNewCustomers = baseNewCustomers * priceAdvantage * Math.sqrt(marketingAdvantage);
+
+            const newCustomers = Math.round(competitiveNewCustomers);
+            totalNewCustomers += newCustomers;
+
+            adChannelPerformance[channelId] = {
+                investment: Math.round(channelInvestment * 100) / 100,
+                newCustomers: newCustomers,
+                efficiency: Math.round(efficiency * 1000) / 10
+            };
+        });
+
+        // === RETENÇÃO ===
+        const baseChurnRate = 0.06;
+        const retentionBonus = globalDecisions.retentionInvestment / 50000;
+        const serviceBonus = globalDecisions.customerService / 20000;
+        const qualityBonus = decisions.qualityInvestment / 40000;
+
+        // Churn afetado pela competição (preços mais altos = mais churn)
+        const competitiveChurn = priceCompetitiveness < 0 ? Math.abs(priceCompetitiveness) * 0.02 : 0;
+
+        const adjustedChurnRate = Math.max(0.02, baseChurnRate * seasonality.churn - retentionBonus * 0.3 - serviceBonus * 0.2 - qualityBonus * 0.15 + competitiveChurn);
+        const lostCustomers = Math.round(prevCustomers * adjustedChurnRate);
+
+        const customerBase = prevCustomers + totalNewCustomers - lostCustomers;
+        const retainedCustomers = prevCustomers - lostCustomers;
+
+        // === VENDAS BASE ===
+        const basePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
+        const priceImpact = Math.max(0.7, 1 - (decisions.discount / 100) * 0.5);
+        const qualityImpact = 1 + (decisions.qualityInvestment / 40000) * 0.15;
+        const brandImpact = 1 + (globalDecisions.brandInvestment / 50000) * 0.1;
+
+        // Vendas afetadas pela competição
+        const competitiveSalesBonus = priceAdvantage * qualityAdvantage;
+        const baseUnitsSold = Math.round(customerBase * priceImpact * qualityImpact * brandImpact * seasonality.demand * competitiveSalesBonus);
+
+        // === CANAIS DE DISTRIBUIÇÃO ===
+        const distributionPerformance = {};
+        let totalRevenue = 0;
+        let totalUnitsSold = 0;
+        let totalDistributionCosts = 0;
+
+        Object.keys(CONFIG.DISTRIBUTION_CHANNELS).forEach(channelId => {
+            const channel = CONFIG.DISTRIBUTION_CHANNELS[channelId];
+            const channelPercentage = decisions.distributionChannels[channelId] / 100;
+
+            const maxUnits = baseUnitsSold * channel.volumeCapacity;
+            const targetUnits = baseUnitsSold * channelPercentage;
+            const unitsInChannel = Math.min(targetUnits, maxUnits);
+
+            // Preço efectivo com share of wallet do canal
+            const effectivePrice = basePrice * channel.shareOfWallet;
+
+            // Receita do canal
+            const channelRevenue = unitsInChannel * effectivePrice;
+
+            // Margem ajustada pelo canal
+            const baseCost = productType === 'premium' ? 45 : productType === 'midrange' ? 35 : 25;
+            const channelMargin = (effectivePrice - baseCost) * channel.marginMultiplier;
+
+            // Custos operacionais do canal
+            const channelCosts = channelRevenue * channel.costs;
+
+            totalRevenue += channelRevenue;
+            totalUnitsSold += unitsInChannel;
+            totalDistributionCosts += channelCosts;
+
+            distributionPerformance[channelId] = {
+                percentage: Math.round(channelPercentage * 100 * 10) / 10,
+                unitsSold: Math.round(unitsInChannel),
+                revenue: Math.round(channelRevenue * 100) / 100,
+                margin: Math.round(channelMargin * 100) / 100,
+                operationalCosts: Math.round(channelCosts * 100) / 100,
+                shareOfWallet: channel.shareOfWallet
+            };
+        });
+
+        // === CUSTOS FINAIS ===
+        const processEfficiency = Math.min(globalDecisions.processImprovement / 30000, 1);
+        const costReduction = 1 - (processEfficiency * 0.25);
+
+        const baseCost = productType === 'premium' ? 45 : productType === 'midrange' ? 35 : 25;
+        const unitVariableCost = baseCost * costReduction;
+        const variableCosts = totalUnitsSold * unitVariableCost;
+        const fixedCosts = productType === 'premium' ? 50000 : productType === 'midrange' ? 45000 : 40000;
+        const salesCommissions = totalRevenue * (decisions.salesCommission / 100);
+
+        const totalCosts = variableCosts + fixedCosts + salesCommissions + totalDistributionCosts;
+        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment +
+                                globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
+                                globalDecisions.customerService + globalDecisions.processImprovement;
+
+        // Margem média ponderada
+        let weightedMargin = 0;
+        Object.values(distributionPerformance).forEach(ch => {
+            weightedMargin += ch.margin * (ch.unitsSold / totalUnitsSold);
+        });
+
+        const profit = totalRevenue - totalCosts - totalInvestments;
+
+        return {
+            // Clientes
+            customerBase: customerBase,
+            newCustomers: totalNewCustomers,
+            lostCustomers: lostCustomers,
+            previousCustomers: prevCustomers,
+            retainedCustomers: retainedCustomers,
+
+            // Vendas
+            revenue: Math.round(totalRevenue * 100) / 100,
+            unitsSold: totalUnitsSold,
+            unitPrice: Math.round(basePrice * 100) / 100,
+            appliedDiscount: decisions.discount,
+
+            // Custos
+            variableCosts: Math.round(variableCosts * 100) / 100,
+            unitVariableCost: Math.round(unitVariableCost * 100) / 100,
+            fixedCosts: fixedCosts,
+            distributionCosts: Math.round(totalDistributionCosts * 100) / 100,
+            marketingCost: decisions.marketingInvestment,
+            qualityCost: decisions.qualityInvestment,
+            salesCommissions: Math.round(salesCommissions * 100) / 100,
+
+            // Resultados
+            margem: Math.round(weightedMargin * 100) / 100,
+            profit: Math.round(profit * 100) / 100,
+
+            // Performance por canal
+            adChannelPerformance: adChannelPerformance,
+            distributionPerformance: distributionPerformance,
+
+            // Métricas competitivas (para análise)
+            competitiveMetrics: {
+                priceAdvantage: Math.round(priceAdvantage * 100) / 100,
+                marketingShare: Math.round(marketingShare * 100) / 100,
+                qualityAdvantage: Math.round(qualityAdvantage * 100) / 100
+            }
+        };
     }
 
     calculateNewPeriodData(previousPeriod, decisions, globalDecisions, globalData, periodNum, productType) {
@@ -1051,6 +1382,7 @@ class SimulatorApp {
 
     loadOverviewData() {
         const teamData = this.getTeamData(this.currentUser);
+        const simData = this.getSimulationData();
 
         // Mostrar dados de cada produto
         const productsContainer = document.getElementById('productsDataContainer');
@@ -1060,39 +1392,84 @@ class SimulatorApp {
         let totalCustomers = 0;
         let totalProfit = 0;
 
+        // Verificar se há resultados pendentes (aguardando simulação)
+        let hasPendingResults = false;
+
         teamData.products.forEach(product => {
             const latestPeriod = product.periods[product.periods.length - 1];
             const data = latestPeriod.data;
 
-            totalRevenue += data.revenue;
-            totalCustomers += data.customerBase;
-            totalProfit += data.profit;
+            // Se data é null, significa que os resultados ainda não foram calculados
+            if (data === null || latestPeriod.status === 'pending') {
+                hasPendingResults = true;
 
-            const productCard = document.createElement('div');
-            productCard.className = 'product-summary-card';
-            productCard.innerHTML = `
-                <h3>${product.name}</h3>
-                <div class="product-stats">
-                    <div class="stat-item">
-                        <span>Receita</span>
-                        <strong>${this.formatCurrency(data.revenue)}</strong>
+                // Mostrar o período anterior (último com dados)
+                const previousPeriod = product.periods[product.periods.length - 2];
+                if (previousPeriod && previousPeriod.data) {
+                    const prevData = previousPeriod.data;
+                    totalRevenue += prevData.revenue;
+                    totalCustomers += prevData.customerBase;
+                    totalProfit += prevData.profit;
+
+                    const productCard = document.createElement('div');
+                    productCard.className = 'product-summary-card pending-results';
+                    productCard.innerHTML = `
+                        <h3>${product.name}</h3>
+                        <div class="pending-notice">
+                            <span class="pending-icon">⏳</span>
+                            <p>Decisões submetidas para ${this.getQuarterLabel(simData.currentPeriod)}</p>
+                            <p class="pending-text">Aguardando simulação do professor</p>
+                        </div>
+                        <div class="product-stats previous-period">
+                            <p class="previous-label">Dados do ${this.getQuarterLabel(latestPeriod.period - 1)}:</p>
+                            <div class="stat-item">
+                                <span>Receita</span>
+                                <strong>${this.formatCurrency(prevData.revenue)}</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span>Clientes</span>
+                                <strong>${prevData.customerBase.toLocaleString('pt-PT')}</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span>Lucro</span>
+                                <strong>${this.formatCurrency(prevData.profit)}</strong>
+                            </div>
+                        </div>
+                        <button onclick="app.showSubmittedDecisions('${product.id}')" class="btn-secondary">Ver Decisões Submetidas</button>
+                    `;
+                    productsContainer.appendChild(productCard);
+                }
+            } else {
+                totalRevenue += data.revenue;
+                totalCustomers += data.customerBase;
+                totalProfit += data.profit;
+
+                const productCard = document.createElement('div');
+                productCard.className = 'product-summary-card';
+                productCard.innerHTML = `
+                    <h3>${product.name}</h3>
+                    <div class="product-stats">
+                        <div class="stat-item">
+                            <span>Receita</span>
+                            <strong>${this.formatCurrency(data.revenue)}</strong>
+                        </div>
+                        <div class="stat-item">
+                            <span>Clientes</span>
+                            <strong>${data.customerBase.toLocaleString('pt-PT')}</strong>
+                        </div>
+                        <div class="stat-item">
+                            <span>Lucro</span>
+                            <strong>${this.formatCurrency(data.profit)}</strong>
+                        </div>
+                        <div class="stat-item">
+                            <span>Preço</span>
+                            <strong>${this.formatCurrency(latestPeriod.decisions.price)}</strong>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span>Clientes</span>
-                        <strong>${data.customerBase.toLocaleString('pt-PT')}</strong>
-                    </div>
-                    <div class="stat-item">
-                        <span>Lucro</span>
-                        <strong>${this.formatCurrency(data.profit)}</strong>
-                    </div>
-                    <div class="stat-item">
-                        <span>Preço</span>
-                        <strong>${this.formatCurrency(latestPeriod.decisions.price)}</strong>
-                    </div>
-                </div>
-                <button onclick="app.showProductDetails('${product.id}')" class="btn-secondary">Ver Detalhes</button>
-            `;
-            productsContainer.appendChild(productCard);
+                    <button onclick="app.showProductDetails('${product.id}')" class="btn-secondary">Ver Detalhes</button>
+                `;
+                productsContainer.appendChild(productCard);
+            }
         });
 
         // Totais da empresa
@@ -1104,6 +1481,82 @@ class SimulatorApp {
         document.getElementById('totalAssets').textContent = this.formatCurrency(teamData.globalData.totalAssets);
         document.getElementById('equity').textContent = this.formatCurrency(teamData.globalData.equity);
         document.getElementById('totalLiabilities').textContent = this.formatCurrency(teamData.globalData.totalLiabilities);
+
+        // Mostrar aviso se há resultados pendentes
+        if (hasPendingResults) {
+            const periodLabel = this.getQuarterLabel(simData.currentPeriod);
+            const notice = document.createElement('div');
+            notice.className = 'pending-simulation-notice';
+            notice.innerHTML = `
+                <div class="notice-content">
+                    <span class="notice-icon">📊</span>
+                    <div>
+                        <strong>Decisões submetidas para ${periodLabel}</strong>
+                        <p>Os resultados estarão disponíveis após o professor correr a simulação do trimestre.</p>
+                    </div>
+                </div>
+            `;
+            productsContainer.insertBefore(notice, productsContainer.firstChild);
+        }
+    }
+
+    showSubmittedDecisions(productId) {
+        const teamData = this.getTeamData(this.currentUser);
+        const product = teamData.products.find(p => p.id === productId);
+        const latestPeriod = product.periods[product.periods.length - 1];
+        const d = latestPeriod.decisions;
+        const g = latestPeriod.globalDecisions;
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>${product.name} - Decisões Submetidas</h2>
+                    <button onclick="this.closest('.modal-overlay').remove()" class="btn-ghost">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="pending-notice-modal">
+                        <span class="pending-icon">⏳</span>
+                        <p>Aguardando simulação do trimestre</p>
+                    </div>
+                    <div class="data-grid">
+                        <div class="data-card">
+                            <h3>Decisões de Produto</h3>
+                            <div class="data-row"><span>Preço de Venda</span><strong>${this.formatCurrency(d.price)}</strong></div>
+                            <div class="data-row"><span>Desconto</span><strong>${d.discount}%</strong></div>
+                            <div class="data-row"><span>Marketing</span><strong>${this.formatCurrency(d.marketingInvestment)}</strong></div>
+                            <div class="data-row"><span>Qualidade</span><strong>${this.formatCurrency(d.qualityInvestment)}</strong></div>
+                            <div class="data-row"><span>Comissões</span><strong>${d.salesCommission}%</strong></div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Decisões Globais</h3>
+                            <div class="data-row"><span>Fidelização</span><strong>${this.formatCurrency(g.retentionInvestment)}</strong></div>
+                            <div class="data-row"><span>Marca</span><strong>${this.formatCurrency(g.brandInvestment)}</strong></div>
+                            <div class="data-row"><span>Serviço Cliente</span><strong>${this.formatCurrency(g.customerService)}</strong></div>
+                            <div class="data-row"><span>Processos</span><strong>${this.formatCurrency(g.processImprovement)}</strong></div>
+                            <div class="data-row"><span>Prazo Crédito</span><strong>${g.creditDays} dias</strong></div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Canais de Publicidade</h3>
+                            <div class="data-row"><span>Google Ads</span><strong>${d.adChannels.googleAds}%</strong></div>
+                            <div class="data-row"><span>Facebook</span><strong>${d.adChannels.facebook}%</strong></div>
+                            <div class="data-row"><span>Instagram</span><strong>${d.adChannels.instagram}%</strong></div>
+                            <div class="data-row"><span>Email</span><strong>${d.adChannels.email}%</strong></div>
+                            <div class="data-row"><span>Rádio/TV</span><strong>${d.adChannels.radio}%</strong></div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Canais de Distribuição</h3>
+                            <div class="data-row"><span>Lojas Próprias</span><strong>${d.distributionChannels.ownStores}%</strong></div>
+                            <div class="data-row"><span>Retalhistas</span><strong>${d.distributionChannels.retailers}%</strong></div>
+                            <div class="data-row"><span>E-commerce</span><strong>${d.distributionChannels.ecommerce}%</strong></div>
+                            <div class="data-row"><span>Grossistas</span><strong>${d.distributionChannels.wholesalers}%</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
     }
 
     showProductDetails(productId) {
@@ -1198,7 +1651,6 @@ class SimulatorApp {
     loadMarketData() {
         const allTeams = this.getAllTeamsData();
         const simData = this.getSimulationData();
-        const currentPeriod = simData.currentPeriod - 1;
 
         const tbody = document.getElementById('marketTableBody');
         tbody.innerHTML = '';
@@ -1213,7 +1665,23 @@ class SimulatorApp {
 
         // Dados para o gráfico: { teamName: [lucro_T1, lucro_T2, ...] }
         const profitEvolution = {};
-        const periodsCount = allTeams[teamCodes[0]]?.products[0]?.periods.length || 0;
+
+        // Encontrar o último período com dados simulados (não pendentes)
+        let lastSimulatedPeriod = 0;
+        teamCodes.forEach(code => {
+            const team = allTeams[code];
+            if (!team) return;
+            team.products.forEach(product => {
+                product.periods.forEach(p => {
+                    if (p.data !== null && p.status !== 'pending' && p.period > lastSimulatedPeriod) {
+                        lastSimulatedPeriod = p.period;
+                    }
+                });
+            });
+        });
+
+        const currentPeriod = lastSimulatedPeriod || simData.currentPeriod - 1;
+        const periodsCount = allTeams[teamCodes[0]]?.products[0]?.periods.filter(p => p.data !== null).length || 0;
 
         teamCodes.forEach(code => {
             const team = allTeams[code];
@@ -1224,19 +1692,26 @@ class SimulatorApp {
             let teamCustomers = 0;
 
             team.products.forEach(product => {
-                const period = product.periods.find(p => p.period === currentPeriod) || product.periods[product.periods.length - 1];
-                teamRevenue += period.data.revenue;
-                teamProfit += period.data.profit;
-                teamCustomers += period.data.customerBase;
+                // Encontrar o último período com dados (não pendente)
+                const period = product.periods.filter(p => p.data !== null && p.status !== 'pending').pop();
+                if (period && period.data) {
+                    teamRevenue += period.data.revenue;
+                    teamProfit += period.data.profit;
+                    teamCustomers += period.data.customerBase;
+                }
             });
 
             // Calcular lucro acumulado e dados para gráfico
             profitEvolution[team.name] = [];
             let teamAccumulatedProfit = 0;
-            for (let p = 0; p < periodsCount; p++) {
+            for (let p = 0; p < team.products[0].periods.length; p++) {
+                const periodData = team.products[0].periods[p];
+                // Só incluir períodos com dados calculados
+                if (periodData.data === null || periodData.status === 'pending') continue;
+
                 let periodProfit = 0;
                 team.products.forEach(product => {
-                    if (product.periods[p]) {
+                    if (product.periods[p] && product.periods[p].data) {
                         periodProfit += product.periods[p].data.profit;
                     }
                 });
@@ -1481,8 +1956,50 @@ class SimulatorApp {
         const teamData = this.getTeamData(this.currentUser);
         const content = document.getElementById(`quarter-content-${p}`);
 
-        const period = teamData.products[0].periods[p].period;
+        const periodInfo = teamData.products[0].periods[p];
+        const period = periodInfo.period;
         const quarter = this.getQuarterNumber(period);
+
+        // Verificar se é um período pendente (sem resultados calculados)
+        if (periodInfo.data === null || periodInfo.status === 'pending') {
+            // Mostrar apenas as decisões submetidas
+            let pendingHTML = `
+                <div class="pending-simulation-notice" style="margin-bottom: 20px;">
+                    <div class="notice-content">
+                        <span class="notice-icon">⏳</span>
+                        <div>
+                            <strong>Aguardando Simulação</strong>
+                            <p>Os resultados deste trimestre serão calculados quando o professor correr a simulação.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            teamData.products.forEach(product => {
+                const pData = product.periods[p];
+                const d = pData.decisions;
+                const g = pData.globalDecisions;
+
+                pendingHTML += `
+                    <div class="product-history">
+                        <h4>${product.name}</h4>
+                        <div class="history-decisions">
+                            <h5 style="font-size: 14px; margin: 12px 0 8px 0; color: var(--text-secondary);">📋 Decisões Submetidas</h5>
+                            <div class="decisions-compact">
+                                <div class="decision-compact"><span>Preço:</span><strong>${this.formatCurrency(d.price)}</strong></div>
+                                <div class="decision-compact"><span>Desconto:</span><strong>${d.discount}%</strong></div>
+                                <div class="decision-compact"><span>Marketing:</span><strong>${this.formatCurrency(d.marketingInvestment)}</strong></div>
+                                <div class="decision-compact"><span>Qualidade:</span><strong>${this.formatCurrency(d.qualityInvestment)}</strong></div>
+                                <div class="decision-compact"><span>Comissões:</span><strong>${d.salesCommission}%</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            content.innerHTML = pendingHTML;
+            return;
+        }
 
         const seasonalityDesc = {
             1: '❄️ Pós-Natal (vendas baixas)',

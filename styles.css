@@ -1350,6 +1350,7 @@ button {
     border-radius: var(--radius);
     margin-bottom: 20px;
     border: 1px solid #f59e0b;
+    grid-column: 1 / -1; /* Ocupar toda a largura do grid */
 }
 
 .notice-content {

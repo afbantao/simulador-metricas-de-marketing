@@ -1800,8 +1800,8 @@ class SimulatorApp {
     renderProfitChart(profitEvolution, periodsCount) {
         const chartContainer = document.getElementById('profitChart');
         const width = chartContainer.clientWidth || 900;
-        const height = 400;
-        const padding = { top: 30, right: 150, bottom: 50, left: 100 };
+        const height = 450;
+        const padding = { top: 40, right: 30, bottom: 60, left: 100 };
         const chartWidth = width - padding.left - padding.right;
         const chartHeight = height - padding.top - padding.bottom;
 
@@ -1816,12 +1816,20 @@ class SimulatorApp {
         });
 
         // Adicionar margem
-        const range = maxProfit - minProfit;
+        const range = maxProfit - minProfit || 1;
         minProfit -= range * 0.1;
         maxProfit += range * 0.1;
 
-        // Criar SVG com tooltip
-        let svg = `<svg width="${width}" height="${height}" style="background: white; border-radius: 8px; position: relative;">
+        // Cores para cada equipa
+        const colors = ['#dc3545', '#97bcd1', '#dcbcd1', '#97dcd1', '#dcbb14', '#33bbd4', '#dc57d1', '#97dc05', '#6366f1'];
+        const teamNames = Object.keys(profitEvolution);
+        const teamCount = teamNames.length;
+
+        // Criar container com gráfico e legenda lado a lado
+        let html = `<div style="display: flex; gap: 20px; align-items: flex-start;">`;
+
+        // SVG do gráfico
+        html += `<div style="flex: 1;"><svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="background: white; border-radius: 8px;">
             <defs>
                 <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
                     <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
@@ -1834,99 +1842,113 @@ class SimulatorApp {
             const y = padding.top + (chartHeight / gridLines) * i;
             const value = maxProfit - ((maxProfit - minProfit) / gridLines) * i;
 
-            svg += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"
+            html += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"
                     stroke="#e5e7eb" stroke-width="1"/>`;
-            svg += `<text x="${padding.left - 10}" y="${y + 5}" text-anchor="end"
-                    font-size="12" fill="#6b7280">${this.formatCurrency(value)}</text>`;
+            html += `<text x="${padding.left - 10}" y="${y + 5}" text-anchor="end"
+                    font-size="11" fill="#6b7280">${this.formatCurrency(value)}</text>`;
         }
 
         // Eixo X (trimestres)
         for (let i = 0; i < periodsCount; i++) {
-            const x = padding.left + (chartWidth / (periodsCount - 1)) * i;
+            const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
             const quarterLabel = this.getQuarterLabel(i + 1);
-            svg += `<text x="${x}" y="${height - padding.bottom + 20}" text-anchor="middle"
-                    font-size="12" fill="#374151">${quarterLabel}</text>`;
+            html += `<text x="${x}" y="${height - padding.bottom + 25}" text-anchor="middle"
+                    font-size="11" fill="#374151">${quarterLabel}</text>`;
         }
 
-        // Cores para cada equipa
-        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
-        let teamIndex = 0;
-
-        // Desenhar linhas
-        Object.entries(profitEvolution).forEach(([teamName, profits]) => {
+        // Desenhar linhas para cada equipa
+        teamNames.forEach((teamName, teamIndex) => {
+            const profits = profitEvolution[teamName];
             const color = colors[teamIndex % colors.length];
 
             let path = 'M ';
             profits.forEach((profit, i) => {
-                const x = padding.left + (chartWidth / (periodsCount - 1)) * i;
+                const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
                 const y = padding.top + chartHeight - ((profit - minProfit) / (maxProfit - minProfit)) * chartHeight;
-                path += `${x},${y} `;
+                path += i === 0 ? `${x},${y}` : ` L ${x},${y}`;
             });
 
-            svg += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
-            teamIndex++;
+            html += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" class="chart-line" data-team="${teamIndex}"/>`;
         });
 
-        // Desenhar pontos com tooltips (separado para ficarem por cima das linhas)
-        teamIndex = 0;
-        Object.entries(profitEvolution).forEach(([teamName, profits]) => {
+        // Desenhar pontos (sem offset)
+        teamNames.forEach((teamName, teamIndex) => {
+            const profits = profitEvolution[teamName];
             const color = colors[teamIndex % colors.length];
-            const safeTeamId = teamIndex;
-
-            // Adicionar pequeno offset horizontal para equipas com mesmo lucro não ficarem sobrepostas
-            const offsetX = (teamIndex - Object.keys(profitEvolution).length / 2) * 1.5;
 
             profits.forEach((profit, i) => {
-                const x = padding.left + (chartWidth / (periodsCount - 1)) * i + offsetX;
+                const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
                 const y = padding.top + chartHeight - ((profit - minProfit) / (maxProfit - minProfit)) * chartHeight;
-                const quarterLabel = this.getQuarterLabel(i + 1);
-                const tooltipId = `tooltip-team${safeTeamId}-period${i}`;
 
-                // Círculo visível
-                svg += `<circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`;
+                html += `<circle cx="${x}" cy="${y}" r="5" fill="${color}" stroke="white" stroke-width="2" class="chart-point" data-team="${teamIndex}"/>`;
+            });
+        });
 
-                // Área de hover invisível maior
-                svg += `<circle cx="${x}" cy="${y}" r="12" fill="transparent" style="cursor: pointer;"
-                        onmouseenter="document.getElementById('${tooltipId}').style.display='block'"
-                        onmouseleave="document.getElementById('${tooltipId}').style.display='none'"/>`;
+        // Áreas de hover verticais por trimestre (para mostrar todas as equipas)
+        for (let i = 0; i < periodsCount; i++) {
+            const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
+            const quarterLabel = this.getQuarterLabel(i + 1);
+            const tooltipId = `tooltip-period-${i}`;
 
-                // Tooltip - ajustar posição se estiver perto das bordas
-                let tooltipX = x + 15;
-                let tooltipY = y - 60;
-                if (tooltipX + 155 > width - padding.right) {
-                    tooltipX = x - 165; // Mostrar à esquerda
-                }
-                if (tooltipY < padding.top) {
-                    tooltipY = y + 15; // Mostrar em baixo
-                }
+            // Área de hover vertical
+            const areaWidth = chartWidth / Math.max(periodsCount, 1);
+            html += `<rect x="${x - areaWidth/2}" y="${padding.top}" width="${areaWidth}" height="${chartHeight}"
+                    fill="transparent" style="cursor: crosshair;"
+                    onmouseenter="document.getElementById('${tooltipId}').style.display='block'; document.getElementById('hover-line-${i}').style.display='block';"
+                    onmouseleave="document.getElementById('${tooltipId}').style.display='none'; document.getElementById('hover-line-${i}').style.display='none';"/>`;
 
-                svg += `<g id="${tooltipId}" style="display: none; pointer-events: none;">
-                    <rect x="${tooltipX}" y="${tooltipY}" width="155" height="58"
-                          fill="#ffffff" fill-opacity="1" stroke="${color}" stroke-width="2.5" rx="6" filter="url(#shadow)"/>
-                    <text x="${tooltipX + 10}" y="${tooltipY + 20}" font-size="12" font-weight="700" fill="#374151">${teamName}</text>
-                    <text x="${tooltipX + 10}" y="${tooltipY + 37}" font-size="11" fill="#6b7280">${quarterLabel}</text>
-                    <text x="${tooltipX + 10}" y="${tooltipY + 52}" font-size="13" font-weight="700"
-                          fill="${profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(profit)}</text>
-                </g>`;
+            // Linha vertical de hover
+            html += `<line id="hover-line-${i}" x1="${x}" y1="${padding.top}" x2="${x}" y2="${padding.top + chartHeight}"
+                    stroke="#9ca3af" stroke-width="1" stroke-dasharray="4,4" style="display: none; pointer-events: none;"/>`;
+
+            // Tooltip com todas as equipas
+            let tooltipHeight = 30 + teamCount * 22;
+            let tooltipY = padding.top + 10;
+            let tooltipX = x + 15;
+
+            // Ajustar posição se perto da borda direita
+            if (tooltipX + 180 > width - padding.right) {
+                tooltipX = x - 195;
+            }
+
+            html += `<g id="${tooltipId}" style="display: none; pointer-events: none;">
+                <rect x="${tooltipX}" y="${tooltipY}" width="180" height="${tooltipHeight}"
+                      fill="#ffffff" stroke="#e5e7eb" stroke-width="1" rx="6" filter="url(#shadow)"/>
+                <text x="${tooltipX + 90}" y="${tooltipY + 18}" text-anchor="middle" font-size="12" font-weight="600" fill="#374151">${quarterLabel}</text>
+                <line x1="${tooltipX + 10}" y1="${tooltipY + 26}" x2="${tooltipX + 170}" y2="${tooltipY + 26}" stroke="#e5e7eb" stroke-width="1"/>`;
+
+            // Listar todas as equipas ordenadas por lucro
+            const periodData = teamNames.map((name, idx) => ({
+                name,
+                profit: profitEvolution[name][i] || 0,
+                color: colors[idx % colors.length]
+            })).sort((a, b) => b.profit - a.profit);
+
+            periodData.forEach((team, idx) => {
+                const textY = tooltipY + 44 + idx * 22;
+                html += `<circle cx="${tooltipX + 15}" cy="${textY - 4}" r="4" fill="${team.color}"/>`;
+                html += `<text x="${tooltipX + 25}" y="${textY}" font-size="10" fill="#374151">${team.name}</text>`;
+                html += `<text x="${tooltipX + 170}" y="${textY}" text-anchor="end" font-size="10" font-weight="600"
+                        fill="${team.profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(team.profit)}</text>`;
             });
 
-            teamIndex++;
-        });
+            html += `</g>`;
+        }
 
-        // Legenda
-        let legendY = padding.top;
-        Object.entries(profitEvolution).forEach(([teamName, profits], index) => {
+        html += '</svg></div>';
+
+        // Legenda lateral
+        html += `<div style="min-width: 140px; padding: 10px 0;">`;
+        teamNames.forEach((teamName, index) => {
             const color = colors[index % colors.length];
-            const legendX = width - padding.right + 10;
-
-            svg += `<line x1="${legendX}" y1="${legendY}" x2="${legendX + 20}" y2="${legendY}"
-                    stroke="${color}" stroke-width="2.5"/>`;
-            svg += `<text x="${legendX + 25}" y="${legendY + 4}" font-size="12" fill="#374151">${teamName}</text>`;
-            legendY += 20;
+            html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: ${color}; font-weight: 500;">
+                <span style="display: inline-block; width: 20px; height: 3px; background: ${color}; border-radius: 2px;"></span>
+                ${teamName}
+            </div>`;
         });
+        html += `</div></div>`;
 
-        svg += '</svg>';
-        chartContainer.innerHTML = svg;
+        chartContainer.innerHTML = html;
     }
 
     loadHistoryData() {

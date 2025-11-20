@@ -968,6 +968,8 @@ class SimulatorApp {
             const teamData = teamsData[code];
             if (!teamData) return;
 
+            let periodTotalProfit = 0; // Lucro total deste período (soma dos 3 produtos)
+
             // Verificar se tem decisões pendentes para este período
             teamData.products.forEach(product => {
                 const periodIndex = product.periods.findIndex(p => p.period === currentPeriod);
@@ -994,7 +996,34 @@ class SimulatorApp {
                 periodData.data = newPeriodData;
                 periodData.status = 'simulated';
                 periodData.simulatedAt = new Date().toISOString();
+
+                // Somar lucro deste produto ao total do período
+                periodTotalProfit += newPeriodData.profit;
             });
+
+            // Atualizar posição financeira com base no lucro líquido
+            const initialAssets = 500000; // Ativo inicial fixo
+
+            // Capitais próprios = valor anterior + lucro do período
+            teamData.globalData.equity += periodTotalProfit;
+
+            // Se capitais próprios ficarem negativos, aumentar passivo para manter equação contabilística
+            // Ativo = Capitais Próprios + Passivo
+            if (teamData.globalData.equity < 0) {
+                // Passivo aumenta para cobrir os capitais próprios negativos
+                teamData.globalData.totalLiabilities = initialAssets - teamData.globalData.equity;
+            } else {
+                // Passivo diminui quando há lucro (empresa paga dívidas ou distribui)
+                teamData.globalData.totalLiabilities = initialAssets - teamData.globalData.equity;
+                // Garantir que passivo não fica negativo
+                if (teamData.globalData.totalLiabilities < 0) {
+                    teamData.globalData.totalLiabilities = 0;
+                    // Ativo aumenta com o excesso de capitais próprios
+                    teamData.globalData.totalAssets = teamData.globalData.equity;
+                } else {
+                    teamData.globalData.totalAssets = initialAssets;
+                }
+            }
 
             this.saveTeamData(code, teamData);
         });

@@ -1462,7 +1462,7 @@ class SimulatorApp {
                         <h3>${product.name}</h3>
                         <div class="pending-notice">
                             <span class="pending-icon">⏳</span>
-                            <p>Decisões submetidas para ${this.getQuarterLabel(simData.currentPeriod)}</p>
+                            <p>Decisões submetidas para o ${this.getQuarterLabel(simData.currentPeriod)}</p>
                             <p class="pending-text">A aguardar simulação do professor</p>
                         </div>
                         <div class="product-stats previous-period">
@@ -1536,7 +1536,7 @@ class SimulatorApp {
                 <div class="notice-content">
                     <span class="notice-icon">📊</span>
                     <div>
-                        <strong>Decisões submetidas para ${periodLabel}</strong>
+                        <strong>Decisões submetidas para o ${periodLabel}</strong>
                         <p>Os resultados estarão disponíveis após o professor correr a simulação do trimestre.</p>
                     </div>
                 </div>

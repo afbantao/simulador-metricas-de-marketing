@@ -1582,6 +1582,169 @@ button {
     color: var(--primary);
 }
 
+/* ===== HISTORY SECTIONS ===== */
+.history-section {
+    margin-bottom: 16px;
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.history-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.section-note {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+    font-style: italic;
+}
+
+/* Results Section - Green theme */
+.results-section {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border-color: #10b981;
+}
+
+.results-section .section-title {
+    color: #065f46;
+    border-color: #10b981;
+}
+
+/* Costs Section - Orange theme */
+.costs-section {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border-color: #f97316;
+}
+
+.costs-section .section-title {
+    color: #9a3412;
+    border-color: #f97316;
+}
+
+/* Profit Calculation Section - Blue theme */
+.profit-calc-section {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-color: #3b82f6;
+}
+
+.profit-calc-section .section-title {
+    color: #1e40af;
+    border-color: #3b82f6;
+}
+
+.profit-calculation {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.calc-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.calc-row.negative span {
+    color: var(--text-secondary);
+}
+
+.calc-row.total {
+    border-top: 2px solid #3b82f6;
+    padding-top: 10px;
+    margin-top: 6px;
+    font-weight: 600;
+}
+
+/* BEP Section - Purple theme */
+.bep-section {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    border-color: #a855f7;
+}
+
+.bep-section .section-title {
+    color: #6b21a8;
+    border-color: #a855f7;
+}
+
+.bep-data {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bep-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 8px 0;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.bep-item:last-child {
+    border-bottom: none;
+}
+
+.bep-item small {
+    width: 100%;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.bep-item.total {
+    border-top: 2px solid #a855f7;
+    border-bottom: none;
+    padding-top: 12px;
+    margin-top: 6px;
+    font-weight: 600;
+}
+
+.bep-item.total strong {
+    color: #7c3aed;
+}
+
+/* Decisions Section - Gray theme */
+.decisions-section {
+    background: var(--surface);
+    border-color: var(--border);
+}
+
+.decisions-section .history-decisions {
+    margin: 0;
+}
+
+.decisions-section h5 {
+    margin-top: 0 !important;
+}
+
+/* Channels Section */
+.channels-section {
+    background: var(--surface);
+    border-color: var(--border);
+    padding: 12px 16px;
+}
+
+.channels-section .channel-performance {
+    margin-top: 0;
+}
+
+.channels-section .channel-performance:first-child {
+    margin-top: 0;
+}
+
 /* ===== QUARTERS GRID ===== */
 .quarters-grid {
     display: flex;

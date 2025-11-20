@@ -2227,21 +2227,90 @@ class SimulatorApp {
                     `;
                 }
 
+                // Calcular valores para Break-Even
+                const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost;
+                const custoVarUnitTotal = (data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold;
+                const precoMedioVenda = data.revenue / data.unitsSold;
+                const margemContribuicao = precoMedioVenda - custoVarUnitTotal;
+                const breakEvenPoint = Math.ceil(custosFixosTotais / margemContribuicao);
+
                 productsHTML += `
                     <div class="product-history">
                         <h4>${product.name}</h4>
 
-                        <div class="history-data">
-                            <div class="history-item"><span>Receita</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
-                            <div class="history-item"><span>Lucro</span><strong>${this.formatCurrency(data.profit)}</strong></div>
-                            <div class="history-item"><span>Clientes</span><strong>${data.customerBase.toLocaleString('pt-PT')}</strong></div>
-                            <div class="history-item"><span>Novos</span><strong>${data.newCustomers.toLocaleString('pt-PT')}</strong></div>
-                            <div class="history-item"><span>Perdidos</span><strong>${data.lostCustomers.toLocaleString('pt-PT')}</strong></div>
-                            <div class="history-item"><span>Unidades</span><strong>${data.unitsSold.toLocaleString('pt-PT')}</strong></div>
+                        <div class="history-section results-section">
+                            <h5 class="section-title">📈 Resultados</h5>
+                            <div class="history-data">
+                                <div class="history-item"><span>Receita</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
+                                <div class="history-item"><span>Lucro</span><strong style="color: ${data.profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(data.profit)}</strong></div>
+                                <div class="history-item"><span>Clientes</span><strong>${data.customerBase.toLocaleString('pt-PT')}</strong></div>
+                                <div class="history-item"><span>Novos</span><strong>${data.newCustomers.toLocaleString('pt-PT')}</strong></div>
+                                <div class="history-item"><span>Perdidos</span><strong>${data.lostCustomers.toLocaleString('pt-PT')}</strong></div>
+                                <div class="history-item"><span>Unidades</span><strong>${data.unitsSold.toLocaleString('pt-PT')}</strong></div>
+                            </div>
                         </div>
 
-                        ${decisionsHTML}
-                        ${channelTablesHTML}
+                        <div class="history-section costs-section">
+                            <h5 class="section-title">💰 Custos e Investimentos</h5>
+                            <div class="history-data">
+                                <div class="history-item"><span>Custos Variáveis</span><strong>${this.formatCurrency(data.variableCosts)}</strong></div>
+                                <div class="history-item"><span>Custo Var. Unit.</span><strong>${this.formatCurrency(data.unitVariableCost)}</strong></div>
+                                <div class="history-item"><span>Custos Fixos</span><strong>${this.formatCurrency(data.fixedCosts)}</strong></div>
+                                <div class="history-item"><span>Custos Distrib.</span><strong>${this.formatCurrency(data.distributionCosts)}</strong></div>
+                                <div class="history-item"><span>Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
+                            </div>
+                        </div>
+
+                        <div class="history-section profit-calc-section">
+                            <h5 class="section-title">🧮 Cálculo do Lucro</h5>
+                            <div class="profit-calculation">
+                                <div class="calc-row"><span>Receita</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
+                                <div class="calc-row negative"><span>− Custos Variáveis</span><strong>${this.formatCurrency(data.variableCosts)}</strong></div>
+                                <div class="calc-row negative"><span>− Custos Fixos</span><strong>${this.formatCurrency(data.fixedCosts)}</strong></div>
+                                <div class="calc-row negative"><span>− Custos Distribuição</span><strong>${this.formatCurrency(data.distributionCosts)}</strong></div>
+                                <div class="calc-row negative"><span>− Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
+                                <div class="calc-row negative"><span>− Marketing</span><strong>${this.formatCurrency(data.marketingCost)}</strong></div>
+                                <div class="calc-row negative"><span>− Qualidade</span><strong>${this.formatCurrency(data.qualityCost)}</strong></div>
+                                <div class="calc-row total"><span>= Lucro</span><strong style="color: ${data.profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(data.profit)}</strong></div>
+                            </div>
+                        </div>
+
+                        <div class="history-section bep-section">
+                            <h5 class="section-title">📊 Estimativa Break-Even</h5>
+                            <p class="section-note">Valores pré-calculados para facilitar a estimativa do ponto de equilíbrio.</p>
+                            <div class="bep-data">
+                                <div class="bep-item">
+                                    <span>Custos Fixos Totais</span>
+                                    <strong>${this.formatCurrency(custosFixosTotais)}</strong>
+                                    <small>(Produção + Marketing + Qualidade)</small>
+                                </div>
+                                <div class="bep-item">
+                                    <span>Custo Var. Unit. Total</span>
+                                    <strong>${this.formatCurrency(custoVarUnitTotal)}</strong>
+                                    <small>(Produção + Distribuição + Comissões)</small>
+                                </div>
+                                <div class="bep-item">
+                                    <span>Preço Médio Venda</span>
+                                    <strong>${this.formatCurrency(precoMedioVenda)}</strong>
+                                </div>
+                                <div class="bep-item">
+                                    <span>Margem Contribuição Unit.</span>
+                                    <strong>${this.formatCurrency(margemContribuicao)}</strong>
+                                </div>
+                                <div class="bep-item total">
+                                    <span>BEP = CF ÷ MC</span>
+                                    <strong>${breakEvenPoint.toLocaleString('pt-PT')} unidades</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="history-section decisions-section">
+                            ${decisionsHTML}
+                        </div>
+
+                        <div class="history-section channels-section">
+                            ${channelTablesHTML}
+                        </div>
                     </div>
                 `;
             });
@@ -2357,6 +2426,33 @@ class SimulatorApp {
             sheetData.push(['Custos Fixos', data.fixedCosts]);
             sheetData.push(['Custos Distribuição', data.distributionCosts]);
             sheetData.push(['Comissões Pagas', data.salesCommissions]);
+            sheetData.push([]);
+
+            // Cálculo do Lucro
+            sheetData.push(['CÁLCULO DO LUCRO']);
+            sheetData.push(['Receita', data.revenue]);
+            sheetData.push(['− Custos Variáveis', data.variableCosts]);
+            sheetData.push(['− Custos Fixos', data.fixedCosts]);
+            sheetData.push(['− Custos Distribuição', data.distributionCosts]);
+            sheetData.push(['− Comissões', data.salesCommissions]);
+            sheetData.push(['− Marketing', data.marketingCost]);
+            sheetData.push(['− Qualidade', data.qualityCost]);
+            sheetData.push(['= Lucro', data.profit]);
+            sheetData.push([]);
+
+            // Break-Even Point
+            const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost;
+            const custoVarUnitTotal = (data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold;
+            const precoMedioVenda = data.revenue / data.unitsSold;
+            const margemContribuicao = precoMedioVenda - custoVarUnitTotal;
+            const breakEvenPoint = Math.ceil(custosFixosTotais / margemContribuicao);
+
+            sheetData.push(['ESTIMATIVA BREAK-EVEN POINT']);
+            sheetData.push(['Custos Fixos Totais (Produção + Marketing + Qualidade)', custosFixosTotais]);
+            sheetData.push(['Custo Var. Unit. Total (Produção + Distribuição + Comissões)', custoVarUnitTotal]);
+            sheetData.push(['Preço Médio Venda', precoMedioVenda]);
+            sheetData.push(['Margem Contribuição Unitária', margemContribuicao]);
+            sheetData.push(['Break-Even Point (unidades)', breakEvenPoint]);
             sheetData.push([]);
 
             const ws = XLSX.utils.aoa_to_sheet(sheetData);

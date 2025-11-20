@@ -1668,7 +1668,8 @@ class SimulatorApp {
                             <h3>Custos</h3>
                             <div class="data-row"><span>Custos Variáveis</span><strong>${this.formatCurrency(data.variableCosts)}</strong></div>
                             <div class="data-row"><span>Custo Var. Unit.</span><strong>${this.formatCurrency(data.unitVariableCost)}</strong></div>
-                            <div class="data-row"><span>Custos Fixos</span><strong>${this.formatCurrency(data.fixedCosts)}</strong></div>
+                            <div class="data-row"><span>Custos Fixos Produção</span><strong>${this.formatCurrency(data.fixedCosts)}</strong></div>
+                            <div class="data-row"><span>Custos Distribuição</span><strong>${this.formatCurrency(data.distributionCosts)}</strong></div>
                             <div class="data-row"><span>Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
                         </div>
                         <div class="data-card">
@@ -1677,9 +1678,26 @@ class SimulatorApp {
                             <div class="data-row"><span>Qualidade</span><strong>${this.formatCurrency(data.qualityCost)}</strong></div>
                         </div>
                         <div class="data-card">
-                            <h3>Resultados</h3>
-                            <div class="data-row"><span>Margem Unitária</span><strong>${this.formatCurrency(data.margem)}</strong></div>
-                            <div class="data-row"><span>Lucro</span><strong>${this.formatCurrency(data.profit)}</strong></div>
+                            <h3>Cálculo do Lucro</h3>
+                            <div class="data-row"><span>Receita</span><strong>${this.formatCurrency(data.revenue)}</strong></div>
+                            <div class="data-row"><span>− Custos Variáveis</span><strong>${this.formatCurrency(data.variableCosts)}</strong></div>
+                            <div class="data-row"><span>− Custos Fixos</span><strong>${this.formatCurrency(data.fixedCosts)}</strong></div>
+                            <div class="data-row"><span>− Custos Distribuição</span><strong>${this.formatCurrency(data.distributionCosts)}</strong></div>
+                            <div class="data-row"><span>− Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
+                            <div class="data-row"><span>− Marketing</span><strong>${this.formatCurrency(data.marketingCost)}</strong></div>
+                            <div class="data-row"><span>− Qualidade</span><strong>${this.formatCurrency(data.qualityCost)}</strong></div>
+                            <div class="data-row" style="border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 8px;"><span><strong>= Lucro</strong></span><strong style="color: ${data.profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(data.profit)}</strong></div>
+                        </div>
+                        <div class="data-card">
+                            <h3>📊 Estimativa Break-Even</h3>
+                            <p style="font-size: 11px; color: #6b7280; margin-bottom: 12px;">Valores pré-calculados para facilitar a estimativa do ponto de equilíbrio.</p>
+                            <div class="data-row"><span>Custos Fixos Totais</span><strong>${this.formatCurrency(data.fixedCosts + data.marketingCost + data.qualityCost)}</strong></div>
+                            <div class="data-row" style="font-size: 10px; color: #6b7280;"><span>(Produção + Marketing + Qualidade)</span></div>
+                            <div class="data-row"><span>Custo Var. Unit. Total</span><strong>${this.formatCurrency((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold)}</strong></div>
+                            <div class="data-row" style="font-size: 10px; color: #6b7280;"><span>(Produção + Distribuição + Comissões)</span></div>
+                            <div class="data-row"><span>Preço Médio Venda</span><strong>${this.formatCurrency(data.revenue / data.unitsSold)}</strong></div>
+                            <div class="data-row"><span>Margem Contribuição Unit.</span><strong>${this.formatCurrency((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))}</strong></div>
+                            <div class="data-row" style="border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 8px;"><span><strong>BEP = CF ÷ MC</strong></span><strong>${Math.ceil((data.fixedCosts + data.marketingCost + data.qualityCost) / ((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))).toLocaleString('pt-PT')} unid.</strong></div>
                         </div>
                     </div>
                 </div>

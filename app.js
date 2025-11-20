@@ -1020,7 +1020,9 @@ class SimulatorApp {
 
     generateCalculationExplanations(decisions, globalDecisions, previousPeriod, result, productType, marketMetrics, allDecisions, teamCode) {
         const prevData = previousPeriod.data;
-        const productMetrics = marketMetrics.products[productType === 'premium' ? 'productA' : productType === 'midrange' ? 'productB' : 'productC'];
+        const productIdMap = { 'premium': 'produtoA', 'midrange': 'produtoB', 'economic': 'produtoC' };
+        const productId = productIdMap[productType] || 'produtoA';
+        const productMetrics = marketMetrics.products[productId];
 
         // Sazonalidade
         const quarter = this.getQuarterNumber(previousPeriod.period + 1);
@@ -1439,8 +1441,10 @@ class SimulatorApp {
         const seasonality = this.getSeasonalityFactors(periodNum, productType);
 
         // === MÉTRICAS DE MERCADO PARA ESTE PRODUTO ===
-        const productMetrics = marketMetrics.products[`produto${productType.charAt(0).toUpperCase()}${productType.slice(1)}`] ||
-                              marketMetrics.products[Object.keys(marketMetrics.products).find(k => k.toLowerCase().includes(productType))] ||
+        // Mapear type para id do produto
+        const productIdMap = { 'premium': 'produtoA', 'midrange': 'produtoB', 'economic': 'produtoC' };
+        const productId = productIdMap[productType] || 'produtoA';
+        const productMetrics = marketMetrics.products[productId] ||
                               { avgPrice: decisions.price, avgMarketing: decisions.marketingInvestment, avgQuality: decisions.qualityInvestment, totalMarketing: decisions.marketingInvestment, teamCount: 1 };
 
         // === EFEITOS COMPETITIVOS ===

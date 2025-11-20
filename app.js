@@ -926,6 +926,328 @@ class SimulatorApp {
         this.loadAdminPanel();
     }
 
+    previewSimulation() {
+        const simData = this.getSimulationData();
+        if (!simData || !simData.initialized) {
+            alert('Simulação não inicializada!');
+            return;
+        }
+
+        const currentPeriod = simData.currentPeriod;
+        const teamCodes = this.getTeamCodes();
+        const teamsData = this.getAllTeamsData();
+
+        // Verificar se há decisões submetidas
+        let hasDecisions = false;
+        teamCodes.forEach(code => {
+            const teamData = teamsData[code];
+            if (teamData && teamData.products[0].periods.some(p => p.period === currentPeriod)) {
+                hasDecisions = true;
+            }
+        });
+
+        if (!hasDecisions) {
+            alert('Nenhuma equipa submeteu decisões para este período.');
+            return;
+        }
+
+        // Recolher todas as decisões
+        const allDecisions = this.collectAllDecisions(teamCodes, teamsData, currentPeriod);
+        const marketMetrics = this.calculateMarketMetrics(allDecisions);
+
+        // Calcular resultados (sem guardar)
+        const previewResults = [];
+
+        teamCodes.forEach(code => {
+            const teamData = teamsData[code];
+            if (!teamData) return;
+
+            const teamResults = {
+                code: code,
+                products: []
+            };
+
+            teamData.products.forEach(product => {
+                const periodIndex = product.periods.findIndex(p => p.period === currentPeriod);
+                if (periodIndex === -1) return;
+
+                const periodData = product.periods[periodIndex];
+                const previousPeriod = product.periods[periodIndex - 1];
+
+                // Calcular resultados
+                const result = this.calculateCompetitivePeriodData(
+                    previousPeriod,
+                    periodData.decisions,
+                    periodData.globalDecisions,
+                    teamData.globalData,
+                    currentPeriod,
+                    product.type,
+                    marketMetrics,
+                    allDecisions
+                );
+
+                // Adicionar explicações de cálculo
+                const explanations = this.generateCalculationExplanations(
+                    periodData.decisions,
+                    periodData.globalDecisions,
+                    previousPeriod,
+                    result,
+                    product.type,
+                    marketMetrics,
+                    allDecisions,
+                    code
+                );
+
+                teamResults.products.push({
+                    id: product.id,
+                    name: product.name,
+                    type: product.type,
+                    decisions: periodData.decisions,
+                    globalDecisions: periodData.globalDecisions,
+                    result: result,
+                    explanations: explanations
+                });
+            });
+
+            if (teamResults.products.length > 0) {
+                previewResults.push(teamResults);
+            }
+        });
+
+        // Mostrar modal com resultados
+        this.showPreviewModal(previewResults, currentPeriod, marketMetrics);
+    }
+
+    generateCalculationExplanations(decisions, globalDecisions, previousPeriod, result, productType, marketMetrics, allDecisions, teamCode) {
+        const prevData = previousPeriod.data;
+        const productMetrics = marketMetrics.products[productType === 'premium' ? 'productA' : productType === 'midrange' ? 'productB' : 'productC'];
+
+        // Sazonalidade
+        const quarter = this.getQuarterNumber(previousPeriod.period + 1);
+        const seasonality = CONFIG.SEASONALITY[quarter];
+
+        // Preço base
+        const basePrice = decisions.price * (1 - decisions.discount / 100) * seasonality.price;
+
+        // Vantagem competitiva de preço
+        const priceCompetitiveness = productMetrics.avgPrice > 0 ?
+            (productMetrics.avgPrice - decisions.price) / productMetrics.avgPrice : 0;
+        const priceAdvantage = 1 + (priceCompetitiveness * 0.3);
+
+        // Share of voice
+        const numTeams = Object.keys(allDecisions).length;
+        const expectedShare = 1 / numTeams;
+        const marketingShare = productMetrics.totalMarketing > 0 ?
+            decisions.marketingInvestment / productMetrics.totalMarketing : 1;
+        const marketingAdvantage = marketingShare / expectedShare;
+
+        // Vantagem de qualidade
+        const qualityAdvantage = productMetrics.avgQuality > 0 ?
+            1 + ((decisions.qualityInvestment - productMetrics.avgQuality) / productMetrics.avgQuality) * 0.2 : 1;
+
+        return {
+            // Métricas de mercado
+            marketAvgPrice: productMetrics.avgPrice,
+            marketTotalMarketing: productMetrics.totalMarketing,
+            marketAvgQuality: productMetrics.avgQuality,
+            numTeams: numTeams,
+
+            // Factores competitivos
+            seasonality: seasonality,
+            basePrice: basePrice,
+            priceCompetitiveness: priceCompetitiveness,
+            priceAdvantage: priceAdvantage,
+            marketingShare: marketingShare,
+            expectedShare: expectedShare,
+            marketingAdvantage: marketingAdvantage,
+            qualityAdvantage: qualityAdvantage,
+
+            // Clientes
+            prevCustomers: prevData.customerBase,
+            retentionRate: result.retainedCustomers / prevData.customerBase,
+
+            // Custos
+            unitVariableCost: result.unitVariableCost,
+            fixedCosts: result.fixedCosts
+        };
+    }
+
+    showPreviewModal(previewResults, currentPeriod, marketMetrics) {
+        const quarterLabel = this.getQuarterLabel(currentPeriod);
+
+        let teamsHTML = '';
+
+        previewResults.forEach(team => {
+            let productsHTML = '';
+            let totalProfit = 0;
+
+            team.products.forEach(product => {
+                const r = product.result;
+                const e = product.explanations;
+                const d = product.decisions;
+
+                totalProfit += r.profit;
+
+                productsHTML += `
+                    <div class="preview-product">
+                        <h4>${product.name}</h4>
+
+                        <div class="preview-section">
+                            <h5>📊 Métricas de Mercado</h5>
+                            <div class="explanation-grid">
+                                <div class="exp-item">
+                                    <span>Preço Médio do Mercado</span>
+                                    <strong>${this.formatCurrency(e.marketAvgPrice)}</strong>
+                                    <small>Média dos preços de todas as ${e.numTeams} equipas</small>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Marketing Total do Mercado</span>
+                                    <strong>${this.formatCurrency(e.marketTotalMarketing)}</strong>
+                                    <small>Soma do marketing de todas as equipas</small>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Qualidade Média do Mercado</span>
+                                    <strong>${this.formatCurrency(e.marketAvgQuality)}</strong>
+                                    <small>Média do investimento em qualidade</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h5>⚡ Factores Competitivos</h5>
+                            <div class="explanation-grid">
+                                <div class="exp-item">
+                                    <span>Sazonalidade (${e.seasonality.name})</span>
+                                    <strong>${(e.seasonality.demand * 100).toFixed(0)}% procura</strong>
+                                    <small>Afecta vendas: ×${e.seasonality.demand}, preço: ×${e.seasonality.price}</small>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Preço Base (com desconto e sazonalidade)</span>
+                                    <strong>${this.formatCurrency(e.basePrice)}</strong>
+                                    <small>${this.formatCurrency(d.price)} × (1 - ${d.discount}%) × ${e.seasonality.price}</small>
+                                </div>
+                                <div class="exp-item ${e.priceAdvantage >= 1 ? 'positive' : 'negative'}">
+                                    <span>Vantagem de Preço</span>
+                                    <strong>×${e.priceAdvantage.toFixed(3)}</strong>
+                                    <small>Preço ${d.price < e.marketAvgPrice ? 'abaixo' : 'acima'} da média (${((e.priceCompetitiveness) * 100).toFixed(1)}%)</small>
+                                </div>
+                                <div class="exp-item ${e.marketingAdvantage >= 1 ? 'positive' : 'negative'}">
+                                    <span>Vantagem de Marketing (Share of Voice)</span>
+                                    <strong>×${e.marketingAdvantage.toFixed(3)}</strong>
+                                    <small>Share: ${(e.marketingShare * 100).toFixed(1)}% vs esperado ${(e.expectedShare * 100).toFixed(1)}%</small>
+                                </div>
+                                <div class="exp-item ${e.qualityAdvantage >= 1 ? 'positive' : 'negative'}">
+                                    <span>Vantagem de Qualidade</span>
+                                    <strong>×${e.qualityAdvantage.toFixed(3)}</strong>
+                                    <small>Investimento ${d.qualityInvestment > e.marketAvgQuality ? 'acima' : 'abaixo'} da média</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h5>👥 Clientes</h5>
+                            <div class="explanation-grid">
+                                <div class="exp-item">
+                                    <span>Clientes Anteriores</span>
+                                    <strong>${e.prevCustomers.toLocaleString('pt-PT')}</strong>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Taxa de Retenção</span>
+                                    <strong>${(e.retentionRate * 100).toFixed(1)}%</strong>
+                                    <small>Retidos: ${r.retainedCustomers.toLocaleString('pt-PT')}</small>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Novos Clientes</span>
+                                    <strong>${r.newCustomers.toLocaleString('pt-PT')}</strong>
+                                    <small>Via publicidade e crescimento orgânico</small>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Clientes Perdidos</span>
+                                    <strong>${r.lostCustomers.toLocaleString('pt-PT')}</strong>
+                                </div>
+                                <div class="exp-item highlight">
+                                    <span>Base Final de Clientes</span>
+                                    <strong>${r.customerBase.toLocaleString('pt-PT')}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h5>💰 Resultados Financeiros</h5>
+                            <div class="explanation-grid">
+                                <div class="exp-item">
+                                    <span>Unidades Vendidas</span>
+                                    <strong>${r.unitsSold.toLocaleString('pt-PT')}</strong>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Receita</span>
+                                    <strong>${this.formatCurrency(r.revenue)}</strong>
+                                    <small>${r.unitsSold.toLocaleString('pt-PT')} × preço médio por canal</small>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Custos Variáveis</span>
+                                    <strong>${this.formatCurrency(r.variableCosts)}</strong>
+                                    <small>${r.unitsSold.toLocaleString('pt-PT')} × ${this.formatCurrency(e.unitVariableCost)}</small>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Custos Fixos</span>
+                                    <strong>${this.formatCurrency(e.fixedCosts)}</strong>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Custos Distribuição</span>
+                                    <strong>${this.formatCurrency(r.distributionCosts)}</strong>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Comissões (${d.salesCommission}%)</span>
+                                    <strong>${this.formatCurrency(r.salesCommissions)}</strong>
+                                </div>
+                                <div class="exp-item">
+                                    <span>Marketing + Qualidade</span>
+                                    <strong>${this.formatCurrency(r.marketingCost + r.qualityCost)}</strong>
+                                </div>
+                                <div class="exp-item highlight ${r.profit >= 0 ? 'positive' : 'negative'}">
+                                    <span>Lucro</span>
+                                    <strong>${this.formatCurrency(r.profit)}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            teamsHTML += `
+                <div class="preview-team">
+                    <div class="preview-team-header">
+                        <h3>${team.code}</h3>
+                        <span class="team-total-profit ${totalProfit >= 0 ? 'positive' : 'negative'}">
+                            Lucro Total: ${this.formatCurrency(totalProfit)}
+                        </span>
+                    </div>
+                    ${productsHTML}
+                </div>
+            `;
+        });
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal preview-modal">
+                <div class="modal-header">
+                    <h2>🔍 Pré-visualização da Simulação - ${quarterLabel}</h2>
+                    <button onclick="this.closest('.modal-overlay').remove()" class="modal-close">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="preview-notice">
+                        <strong>⚠️ Esta é apenas uma pré-visualização.</strong>
+                        Os resultados NÃO foram guardados. Para publicar os resultados para os alunos, clique em "Correr Simulação".
+                    </div>
+                    ${teamsHTML}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
     runSimulation() {
         const simData = this.getSimulationData();
         if (!simData || !simData.initialized) {

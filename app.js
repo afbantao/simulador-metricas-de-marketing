@@ -514,6 +514,7 @@ class SimulatorApp {
                 products: CONFIG.PRODUCTS.map(product => ({
                     id: product.id,
                     name: product.name,
+                    type: product.type,
                     periods: JSON.parse(JSON.stringify(historicalData[product.id])) // deep copy
                 })),
                 globalData: {
@@ -974,6 +975,9 @@ class SimulatorApp {
                 const periodData = product.periods[periodIndex];
                 const previousPeriod = product.periods[periodIndex - 1];
 
+                // Determinar tipo do produto (fallback para equipas existentes sem type)
+                const productType = product.type || (product.id === 'produtoA' ? 'premium' : product.id === 'produtoB' ? 'midrange' : 'economic');
+
                 // Calcular resultados
                 const result = this.calculateCompetitivePeriodData(
                     previousPeriod,
@@ -981,7 +985,7 @@ class SimulatorApp {
                     periodData.globalDecisions,
                     teamData.globalData,
                     currentPeriod,
-                    product.type,
+                    productType,
                     marketMetrics,
                     allDecisions
                 );
@@ -992,7 +996,7 @@ class SimulatorApp {
                     periodData.globalDecisions,
                     previousPeriod,
                     result,
-                    product.type,
+                    productType,
                     marketMetrics,
                     allDecisions,
                     code
@@ -1001,7 +1005,7 @@ class SimulatorApp {
                 teamResults.products.push({
                     id: product.id,
                     name: product.name,
-                    type: product.type,
+                    type: productType,
                     decisions: periodData.decisions,
                     globalDecisions: periodData.globalDecisions,
                     result: result,
@@ -1304,6 +1308,9 @@ class SimulatorApp {
 
                 const previousPeriod = product.periods[periodIndex - 1];
 
+                // Determinar tipo do produto (fallback para equipas existentes sem type)
+                const productType = product.type || (product.id === 'produtoA' ? 'premium' : product.id === 'produtoB' ? 'midrange' : 'economic');
+
                 // Calcular resultados considerando a competição
                 const newPeriodData = this.calculateCompetitivePeriodData(
                     previousPeriod,
@@ -1311,7 +1318,7 @@ class SimulatorApp {
                     periodData.globalDecisions,
                     teamData.globalData,
                     currentPeriod,
-                    product.type,
+                    productType,
                     marketMetrics,
                     allDecisions
                 );

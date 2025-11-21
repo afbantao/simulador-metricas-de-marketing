@@ -1775,9 +1775,10 @@ class SimulatorApp {
         const salesCommissions = totalRevenue * (decisions.salesCommission / 100);
 
         const totalCosts = variableCosts + fixedCosts + salesCommissions + totalDistributionCosts;
-        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment +
-                                globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
-                                globalDecisions.customerService + globalDecisions.processImprovement;
+        // Investimentos globais divididos por 3 produtos
+        const globalInvestmentsShare = (globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
+                                globalDecisions.customerService + globalDecisions.processImprovement) / 3;
+        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment + globalInvestmentsShare;
 
         // Margem média ponderada
         let weightedMargin = 0;
@@ -1929,9 +1930,10 @@ class SimulatorApp {
         const salesCommissions = totalRevenue * (decisions.salesCommission / 100);
 
         const totalCosts = variableCosts + fixedCosts + salesCommissions + totalDistributionCosts;
-        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment +
-                                globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
-                                globalDecisions.customerService + globalDecisions.processImprovement;
+        // Investimentos globais divididos por 3 produtos
+        const globalInvestmentsShare = (globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
+                                globalDecisions.customerService + globalDecisions.processImprovement) / 3;
+        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment + globalInvestmentsShare;
 
         // Margem média ponderada
         let weightedMargin = 0;

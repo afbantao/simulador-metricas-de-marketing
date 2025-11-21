@@ -1282,8 +1282,37 @@ class SimulatorApp {
         });
 
         if (!allSubmitted) {
-            const proceed = confirm(`Atenção: ${pendingTeams.length} equipa(s) ainda não submeteram decisões.\n\nDeseja correr a simulação mesmo assim?\n\nEquipas pendentes: ${pendingTeams.join(', ')}`);
+            const proceed = confirm(`Atenção: ${pendingTeams.length} equipa(s) ainda não submeteram decisões.\n\nAs decisões do período anterior serão usadas automaticamente.\n\nEquipas pendentes: ${pendingTeams.join(', ')}\n\nDeseja continuar?`);
             if (!proceed) return;
+
+            // Criar submissões automáticas para equipas que não submeteram
+            pendingTeams.forEach(code => {
+                const teamData = teamsData[code];
+                if (!teamData) return;
+
+                teamData.products.forEach(product => {
+                    // Encontrar último período com decisões
+                    const lastPeriod = product.periods[product.periods.length - 1];
+
+                    // Criar novo período com as mesmas decisões do anterior
+                    const newPeriod = {
+                        period: currentPeriod,
+                        decisions: JSON.parse(JSON.stringify(lastPeriod.decisions)),
+                        globalDecisions: JSON.parse(JSON.stringify(lastPeriod.globalDecisions)),
+                        data: null,
+                        submittedAt: new Date().toISOString(),
+                        status: 'pending',
+                        autoSubmitted: true // Marcar como submissão automática
+                    };
+
+                    product.periods.push(newPeriod);
+                });
+
+                this.saveTeamData(code, teamData);
+            });
+
+            // Recarregar dados após criar submissões automáticas
+            Object.assign(teamsData, this.getAllTeamsData());
         }
 
         // Recolher todas as decisões para calcular efeitos competitivos

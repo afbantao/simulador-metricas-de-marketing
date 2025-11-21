@@ -1727,7 +1727,8 @@ class SimulatorApp {
             // Receita líquida = preço base × marginMultiplier (comissões do canal)
             const netPrice = basePrice * channel.marginMultiplier;
             const channelRevenue = unitsInChannel * netPrice;
-            const channelMargin = netPrice - 35;
+            const baseCost = productType === 'premium' ? 45 : productType === 'midrange' ? 35 : 25;
+            const channelMargin = netPrice - baseCost;
 
             // Custos operacionais do canal
             const channelCosts = channelRevenue * channel.costs;
@@ -1749,7 +1750,8 @@ class SimulatorApp {
         // === CUSTOS FINAIS ===
         const processEfficiency = Math.min(globalDecisions.processImprovement / 30000, 1);
         const costReduction = 1 - (processEfficiency * 0.25);
-        const unitVariableCost = 35 * costReduction;
+        const baseProductCost = productType === 'premium' ? 45 : productType === 'midrange' ? 35 : 25;
+        const unitVariableCost = baseProductCost * costReduction;
         const variableCosts = totalUnitsSold * unitVariableCost;
 
         const fixedCosts = prevData.fixedCosts || 45000;

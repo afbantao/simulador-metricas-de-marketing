@@ -2171,6 +2171,10 @@ class SimulatorApp {
         const product = teamData.products.find(p => p.id === productId);
         const latestPeriod = product.periods[product.periods.length - 1];
         const data = latestPeriod.data;
+        const globalDec = latestPeriod.globalDecisions;
+
+        // Investimentos globais divididos por 3 produtos
+        const globalInvestmentsShare = (globalDec.retentionInvestment + globalDec.brandInvestment + globalDec.customerService + globalDec.processImprovement) / 3;
 
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
@@ -2219,18 +2223,19 @@ class SimulatorApp {
                             <div class="data-row"><span>− Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
                             <div class="data-row"><span>− Marketing</span><strong>${this.formatCurrency(data.marketingCost)}</strong></div>
                             <div class="data-row"><span>− Qualidade</span><strong>${this.formatCurrency(data.qualityCost)}</strong></div>
+                            <div class="data-row"><span>− Invest. Globais (1/3)</span><strong>${this.formatCurrency(globalInvestmentsShare)}</strong></div>
                             <div class="data-row" style="border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 8px;"><span><strong>= Lucro</strong></span><strong style="color: ${data.profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(data.profit)}</strong></div>
                         </div>
                         <div class="data-card">
                             <h3>📊 Estimativa Break-Even</h3>
                             <p style="font-size: 11px; color: #6b7280; margin-bottom: 12px;">Valores pré-calculados para facilitar a estimativa do ponto de equilíbrio.</p>
-                            <div class="data-row"><span>Custos Fixos Totais</span><strong>${this.formatCurrency(data.fixedCosts + data.marketingCost + data.qualityCost)}</strong></div>
-                            <div class="data-row" style="font-size: 10px; color: #6b7280;"><span>(Produção + Marketing + Qualidade)</span></div>
+                            <div class="data-row"><span>Custos Fixos Totais</span><strong>${this.formatCurrency(data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShare)}</strong></div>
+                            <div class="data-row" style="font-size: 10px; color: #6b7280;"><span>(Produção + Marketing + Qualidade + Invest. Globais)</span></div>
                             <div class="data-row"><span>Custo Var. Unit. Total</span><strong>${this.formatCurrency((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold)}</strong></div>
                             <div class="data-row" style="font-size: 10px; color: #6b7280;"><span>(Produção + Distribuição + Comissões)</span></div>
-                            <div class="data-row"><span>Preço Médio Venda</span><strong>${this.formatCurrency(data.revenue / data.unitsSold)}</strong></div>
-                            <div class="data-row"><span>Margem Contribuição Unit.</span><strong>${this.formatCurrency((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))}</strong></div>
-                            <div class="data-row" style="border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 8px;"><span><strong>BEP = CF ÷ MC</strong></span><strong>${Math.ceil((data.fixedCosts + data.marketingCost + data.qualityCost) / ((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))).toLocaleString('pt-PT')} unid.</strong></div>
+                            <div class="data-row"><span>Preço Médio de Venda</span><strong>${this.formatCurrency(data.revenue / data.unitsSold)}</strong></div>
+                            <div class="data-row"><span>Margem de Contribuição Unitária</span><strong>${this.formatCurrency((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))}</strong></div>
+                            <div class="data-row" style="border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 8px;"><span><strong>BEP = CF ÷ MC</strong></span><strong>${Math.ceil((data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShare) / ((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))).toLocaleString('pt-PT')} unid.</strong></div>
                         </div>
                     </div>
                 </div>
@@ -2708,7 +2713,9 @@ class SimulatorApp {
                 }
 
                 // Calcular valores para Break-Even
-                const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost;
+                const globalDec = periodData.globalDecisions;
+                const globalInvestmentsShare = (globalDec.retentionInvestment + globalDec.brandInvestment + globalDec.customerService + globalDec.processImprovement) / 3;
+                const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShare;
                 const custoVarUnitTotal = (data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold;
                 const precoMedioVenda = data.revenue / data.unitsSold;
                 const margemContribuicao = precoMedioVenda - custoVarUnitTotal;
@@ -2816,6 +2823,7 @@ class SimulatorApp {
                                 <div class="calc-row negative"><span>− Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
                                 <div class="calc-row negative"><span>− Marketing</span><strong>${this.formatCurrency(data.marketingCost)}</strong></div>
                                 <div class="calc-row negative"><span>− Qualidade</span><strong>${this.formatCurrency(data.qualityCost)}</strong></div>
+                                <div class="calc-row negative"><span>− Invest. Globais (1/3)</span><strong>${this.formatCurrency(globalInvestmentsShare)}</strong></div>
                                 <div class="calc-row total"><span>= Lucro</span><strong style="color: ${data.profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(data.profit)}</strong></div>
                             </div>
                         </div>
@@ -2827,7 +2835,7 @@ class SimulatorApp {
                                 <div class="bep-item">
                                     <span>Custos Fixos Totais</span>
                                     <strong>${this.formatCurrency(custosFixosTotais)}</strong>
-                                    <small>(Produção + Marketing + Qualidade)</small>
+                                    <small>(Produção + Marketing + Qualidade + Invest. Globais)</small>
                                 </div>
                                 <div class="bep-item">
                                     <span>Custo Var. Unit. Total</span>
@@ -2975,18 +2983,21 @@ class SimulatorApp {
             sheetData.push(['− Comissões', data.salesCommissions]);
             sheetData.push(['− Marketing', data.marketingCost]);
             sheetData.push(['− Qualidade', data.qualityCost]);
+            const globalDecExcel = periodData.globalDecisions;
+            const globalInvestmentsShareExcel = (globalDecExcel.retentionInvestment + globalDecExcel.brandInvestment + globalDecExcel.customerService + globalDecExcel.processImprovement) / 3;
+            sheetData.push(['− Invest. Globais (1/3)', globalInvestmentsShareExcel]);
             sheetData.push(['= Lucro', data.profit]);
             sheetData.push([]);
 
             // Break-Even Point
-            const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost;
+            const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShareExcel;
             const custoVarUnitTotal = (data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold;
             const precoMedioVenda = data.revenue / data.unitsSold;
             const margemContribuicao = precoMedioVenda - custoVarUnitTotal;
             const breakEvenPoint = Math.ceil(custosFixosTotais / margemContribuicao);
 
             sheetData.push(['ESTIMATIVA BREAK-EVEN POINT']);
-            sheetData.push(['Custos Fixos Totais (Produção + Marketing + Qualidade)', custosFixosTotais]);
+            sheetData.push(['Custos Fixos Totais (Produção + Marketing + Qualidade + Invest. Globais)', custosFixosTotais]);
             sheetData.push(['Custo Variável Unitário Total (Produção + Distribuição + Comissões)', custoVarUnitTotal]);
             sheetData.push(['Preço Médio de Venda', precoMedioVenda]);
             sheetData.push(['Margem de Contribuição Unitária', margemContribuicao]);

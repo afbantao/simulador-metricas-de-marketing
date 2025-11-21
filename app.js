@@ -948,8 +948,9 @@ class SimulatorApp {
 
             teamData.products.forEach(product => {
                 product.periods.forEach((periodData, periodIndex) => {
-                    // Só recalcular períodos que já têm dados (não pendentes)
-                    if (periodData.data && periodData.status === 'completed') {
+                    // Só recalcular períodos que já têm dados calculados
+                    // (excluir período 0 que é histórico inicial e períodos pendentes)
+                    if (periodData.data && periodIndex > 0) {
                         const periodNum = periodData.period;
 
                         // Verificar se este período já está na lista
@@ -983,7 +984,7 @@ class SimulatorApp {
                     if (periodIndex === -1) return;
 
                     const periodData = product.periods[periodIndex];
-                    if (!periodData.data || periodData.status !== 'completed') return;
+                    if (!periodData.data) return;
 
                     const previousPeriod = product.periods[periodIndex - 1];
                     if (!previousPeriod || !previousPeriod.data) return;

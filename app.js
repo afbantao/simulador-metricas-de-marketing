@@ -997,13 +997,16 @@ class SimulatorApp {
                     const oldUnitVariableCost = periodData.data.unitVariableCost;
 
                     // Recalcular com fórmulas corrigidas
+                    const allDecisions = this.collectAllDecisions(teamCodes, teamsData, periodNum);
                     const newData = this.calculateCompetitivePeriodData(
                         previousPeriod,
                         periodData.decisions,
                         periodData.globalDecisions,
-                        marketMetrics,
+                        null,
                         periodNum,
-                        productType
+                        productType,
+                        marketMetrics,
+                        allDecisions
                     );
 
                     // Registar alterações significativas

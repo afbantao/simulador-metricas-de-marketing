@@ -709,9 +709,10 @@ class SimulatorApp {
                     const targetUnits = baseUnitsSold * channelPercentage;
                     const unitsInChannel = Math.min(targetUnits, maxUnits);
 
-                    const effectivePrice = basePrice * channel.shareOfWallet;
-                    const channelRevenue = unitsInChannel * effectivePrice;
-                    const channelMargin = (effectivePrice - profile.baseCost) * channel.marginMultiplier;
+                    // Receita líquida = preço base × marginMultiplier (comissões do canal)
+                    const netPrice = basePrice * channel.marginMultiplier;
+                    const channelRevenue = unitsInChannel * netPrice;
+                    const channelMargin = netPrice - profile.baseCost;
                     const channelCosts = channelRevenue * channel.costs;
 
                     totalRevenue += channelRevenue;
@@ -724,7 +725,7 @@ class SimulatorApp {
                         revenue: Math.round(channelRevenue * 100) / 100,
                         margin: Math.round(channelMargin * 100) / 100,
                         operationalCosts: Math.round(channelCosts * 100) / 100,
-                        shareOfWallet: channel.shareOfWallet
+                        netPrice: Math.round(netPrice * 100) / 100
                     };
                 });
 
@@ -1565,15 +1566,15 @@ class SimulatorApp {
             const targetUnits = baseUnitsSold * channelPercentage;
             const unitsInChannel = Math.min(targetUnits, maxUnits);
 
-            // Preço efectivo com share of wallet do canal
-            const effectivePrice = basePrice * channel.shareOfWallet;
+            // Receita líquida = preço base × marginMultiplier (comissões do canal)
+            const netPrice = basePrice * channel.marginMultiplier;
 
             // Receita do canal
-            const channelRevenue = unitsInChannel * effectivePrice;
+            const channelRevenue = unitsInChannel * netPrice;
 
-            // Margem ajustada pelo canal
+            // Margem por unidade
             const baseCost = productType === 'premium' ? 45 : productType === 'midrange' ? 35 : 25;
-            const channelMargin = (effectivePrice - baseCost) * channel.marginMultiplier;
+            const channelMargin = netPrice - baseCost;
 
             // Custos operacionais do canal
             const channelCosts = channelRevenue * channel.costs;
@@ -1588,7 +1589,7 @@ class SimulatorApp {
                 revenue: Math.round(channelRevenue * 100) / 100,
                 margin: Math.round(channelMargin * 100) / 100,
                 operationalCosts: Math.round(channelCosts * 100) / 100,
-                shareOfWallet: channel.shareOfWallet
+                netPrice: Math.round(netPrice * 100) / 100
             };
         });
 
@@ -1723,14 +1724,10 @@ class SimulatorApp {
             const targetUnits = baseUnitsSold * channelPercentage;
             const unitsInChannel = Math.min(targetUnits, maxUnits);
 
-            // Preço efectivo com share of wallet do canal
-            const effectivePrice = basePrice * channel.shareOfWallet;
-
-            // Receita do canal
-            const channelRevenue = unitsInChannel * effectivePrice;
-
-            // Margem ajustada pelo canal (retalhistas ficam com parte)
-            const channelMargin = (effectivePrice - 35) * channel.marginMultiplier;
+            // Receita líquida = preço base × marginMultiplier (comissões do canal)
+            const netPrice = basePrice * channel.marginMultiplier;
+            const channelRevenue = unitsInChannel * netPrice;
+            const channelMargin = netPrice - 35;
 
             // Custos operacionais do canal
             const channelCosts = channelRevenue * channel.costs;

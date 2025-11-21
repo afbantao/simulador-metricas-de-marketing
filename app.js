@@ -928,6 +928,173 @@ class SimulatorApp {
         this.loadAdminPanel();
     }
 
+    recalculatePreviousPeriods() {
+        const simData = this.getSimulationData();
+        if (!simData || !simData.initialized) {
+            alert('Simulação não inicializada!');
+            return;
+        }
+
+        const teamCodes = this.getTeamCodes();
+        const teamsData = this.getAllTeamsData();
+
+        // Encontrar todos os períodos que já foram processados
+        let periodsToRecalculate = [];
+        let changes = [];
+
+        teamCodes.forEach(code => {
+            const teamData = teamsData[code];
+            if (!teamData) return;
+
+            teamData.products.forEach(product => {
+                product.periods.forEach((periodData, periodIndex) => {
+                    // Só recalcular períodos que já têm dados (não pendentes)
+                    if (periodData.data && periodData.status === 'completed') {
+                        const periodNum = periodData.period;
+
+                        // Verificar se este período já está na lista
+                        if (!periodsToRecalculate.includes(periodNum)) {
+                            periodsToRecalculate.push(periodNum);
+                        }
+                    }
+                });
+            });
+        });
+
+        if (periodsToRecalculate.length === 0) {
+            alert('Não há períodos processados para recalcular.');
+            return;
+        }
+
+        periodsToRecalculate.sort((a, b) => a - b);
+
+        // Recalcular cada período
+        periodsToRecalculate.forEach(periodNum => {
+            // Recolher todas as decisões para calcular efeitos competitivos
+            const allDecisions = this.collectAllDecisions(teamCodes, teamsData, periodNum);
+            const marketMetrics = this.calculateMarketMetrics(allDecisions);
+
+            teamCodes.forEach(code => {
+                const teamData = teamsData[code];
+                if (!teamData) return;
+
+                teamData.products.forEach(product => {
+                    const periodIndex = product.periods.findIndex(p => p.period === periodNum);
+                    if (periodIndex === -1) return;
+
+                    const periodData = product.periods[periodIndex];
+                    if (!periodData.data || periodData.status !== 'completed') return;
+
+                    const previousPeriod = product.periods[periodIndex - 1];
+                    if (!previousPeriod || !previousPeriod.data) return;
+
+                    const productType = product.type || (product.id === 'produtoA' ? 'premium' : product.id === 'produtoB' ? 'midrange' : 'economic');
+
+                    // Guardar valores antigos
+                    const oldRevenue = periodData.data.revenue;
+                    const oldProfit = periodData.data.profit;
+                    const oldUnitVariableCost = periodData.data.unitVariableCost;
+
+                    // Recalcular com fórmulas corrigidas
+                    const newData = this.calculateCompetitivePeriodData(
+                        previousPeriod,
+                        periodData.decisions,
+                        periodData.globalDecisions,
+                        marketMetrics,
+                        periodNum,
+                        productType
+                    );
+
+                    // Registar alterações significativas
+                    if (Math.abs(newData.revenue - oldRevenue) > 1 || Math.abs(newData.profit - oldProfit) > 1) {
+                        changes.push({
+                            team: code,
+                            product: product.name,
+                            period: this.getQuarterLabel(periodNum),
+                            oldRevenue: oldRevenue,
+                            newRevenue: newData.revenue,
+                            oldProfit: oldProfit,
+                            newProfit: newData.profit
+                        });
+                    }
+
+                    // Atualizar dados
+                    periodData.data = newData;
+                });
+            });
+        });
+
+        if (changes.length === 0) {
+            alert('Recálculo completo. Não foram encontradas diferenças significativas nos valores.');
+            return;
+        }
+
+        // Mostrar resumo das alterações
+        let summaryHTML = `<h3>Alterações a aplicar (${changes.length} produtos afetados):</h3><div style="max-height: 400px; overflow-y: auto;"><table style="width:100%; border-collapse: collapse; font-size: 12px;">
+            <tr style="background:#f0f0f0;"><th style="padding:8px;border:1px solid #ddd;">Equipa</th><th style="padding:8px;border:1px solid #ddd;">Produto</th><th style="padding:8px;border:1px solid #ddd;">Período</th><th style="padding:8px;border:1px solid #ddd;">Receita Antiga</th><th style="padding:8px;border:1px solid #ddd;">Receita Nova</th><th style="padding:8px;border:1px solid #ddd;">Lucro Antigo</th><th style="padding:8px;border:1px solid #ddd;">Lucro Novo</th></tr>`;
+
+        changes.forEach(change => {
+            const revDiff = change.newRevenue - change.oldRevenue;
+            const profDiff = change.newProfit - change.oldProfit;
+            summaryHTML += `<tr>
+                <td style="padding:6px;border:1px solid #ddd;">${change.team}</td>
+                <td style="padding:6px;border:1px solid #ddd;">${change.product}</td>
+                <td style="padding:6px;border:1px solid #ddd;">${change.period}</td>
+                <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.oldRevenue)}</td>
+                <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.newRevenue)} <span style="color:${revDiff >= 0 ? 'green' : 'red'}">(${revDiff >= 0 ? '+' : ''}${this.formatCurrency(revDiff)})</span></td>
+                <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.oldProfit)}</td>
+                <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.newProfit)} <span style="color:${profDiff >= 0 ? 'green' : 'red'}">(${profDiff >= 0 ? '+' : ''}${this.formatCurrency(profDiff)})</span></td>
+            </tr>`;
+        });
+
+        summaryHTML += '</table></div>';
+
+        // Criar modal de confirmação
+        const modal = document.createElement('div');
+        modal.className = 'preview-modal';
+        modal.innerHTML = `
+            <div class="preview-modal-content" style="max-width: 900px;">
+                <span class="preview-modal-close" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                <h2>🔄 Recalcular Períodos Anteriores</h2>
+                ${summaryHTML}
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="app.confirmRecalculation()" class="btn-success" style="margin-right: 10px;">✅ Aplicar Alterações</button>
+                    <button onclick="this.closest('.preview-modal').remove()" class="btn-secondary">❌ Cancelar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Guardar dados temporariamente para confirmação
+        this._recalculatedTeamsData = teamsData;
+    }
+
+    confirmRecalculation() {
+        if (!this._recalculatedTeamsData) {
+            alert('Erro: dados de recálculo não encontrados.');
+            return;
+        }
+
+        // Guardar todos os dados recalculados
+        const teamCodes = this.getTeamCodes();
+        teamCodes.forEach(code => {
+            const teamData = this._recalculatedTeamsData[code];
+            if (teamData) {
+                this.saveTeamData(code, teamData);
+            }
+        });
+
+        // Limpar dados temporários
+        delete this._recalculatedTeamsData;
+
+        // Fechar modal
+        const modal = document.querySelector('.preview-modal');
+        if (modal) modal.remove();
+
+        alert('Recálculo aplicado com sucesso! Os dados foram atualizados.');
+        this.loadAdminPanel();
+    }
+
     previewSimulation() {
         const simData = this.getSimulationData();
         if (!simData || !simData.initialized) {

@@ -2422,8 +2422,8 @@ class SimulatorApp {
     renderProfitChart(profitEvolution, periodsCount) {
         const chartContainer = document.getElementById('profitChart');
         const width = chartContainer.clientWidth || 900;
-        const height = 450;
-        const padding = { top: 40, right: 30, bottom: 60, left: 100 };
+        const height = 500;
+        const padding = { top: 50, right: 100, bottom: 80, left: 120 };
         const chartWidth = width - padding.left - padding.right;
         const chartHeight = height - padding.top - padding.bottom;
 
@@ -2467,15 +2467,15 @@ class SimulatorApp {
             html += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"
                     stroke="#e5e7eb" stroke-width="1"/>`;
             html += `<text x="${padding.left - 10}" y="${y + 5}" text-anchor="end"
-                    font-size="11" fill="#6b7280">${this.formatCurrency(value)}</text>`;
+                    font-size="13" fill="#6b7280">${this.formatCurrency(value)}</text>`;
         }
 
         // Eixo X (trimestres)
         for (let i = 0; i < periodsCount; i++) {
             const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
             const quarterLabel = this.getQuarterLabel(i + 1);
-            html += `<text x="${x}" y="${height - padding.bottom + 25}" text-anchor="middle"
-                    font-size="11" fill="#374151">${quarterLabel}</text>`;
+            html += `<text x="${x}" y="${height - padding.bottom + 30}" text-anchor="middle"
+                    font-size="13" fill="#374151">${quarterLabel}</text>`;
         }
 
         // Desenhar linhas para cada equipa

@@ -1531,28 +1531,22 @@ class SimulatorApp {
             });
 
             // Atualizar posição financeira com base no lucro líquido
-            const initialAssets = 500000; // Ativo inicial fixo
+            const initialLiabilities = 200000; // Passivo inicial fixo
 
             // Capitais próprios = valor anterior + lucro do período
             teamData.globalData.equity += periodTotalProfit;
 
-            // Se capitais próprios ficarem negativos, aumentar passivo para manter equação contabilística
-            // Ativo = Capitais Próprios + Passivo
+            // Equação contabilística: Ativo = Capitais Próprios + Passivo
             if (teamData.globalData.equity < 0) {
-                // Passivo aumenta para cobrir os capitais próprios negativos
-                teamData.globalData.totalLiabilities = initialAssets - teamData.globalData.equity;
+                // Se capitais próprios negativos, passivo aumenta para cobrir (empresa endivida-se)
+                teamData.globalData.totalLiabilities = initialLiabilities - teamData.globalData.equity;
             } else {
-                // Passivo diminui quando há lucro (empresa paga dívidas ou distribui)
-                teamData.globalData.totalLiabilities = initialAssets - teamData.globalData.equity;
-                // Garantir que passivo não fica negativo
-                if (teamData.globalData.totalLiabilities < 0) {
-                    teamData.globalData.totalLiabilities = 0;
-                    // Ativo aumenta com o excesso de capitais próprios
-                    teamData.globalData.totalAssets = teamData.globalData.equity;
-                } else {
-                    teamData.globalData.totalAssets = initialAssets;
-                }
+                // Passivo mantém-se no valor inicial
+                teamData.globalData.totalLiabilities = initialLiabilities;
             }
+
+            // Ativo = Capitais Próprios + Passivo
+            teamData.globalData.totalAssets = teamData.globalData.equity + teamData.globalData.totalLiabilities;
 
             this.saveTeamData(code, teamData);
         });

@@ -2423,7 +2423,7 @@ class SimulatorApp {
         const chartContainer = document.getElementById('profitChart');
         const width = chartContainer.clientWidth || 900;
         const height = 500;
-        const padding = { top: 50, right: 100, bottom: 80, left: 120 };
+        const padding = { top: 50, right: 100, bottom: 80, left: 150 };
         const chartWidth = width - padding.left - padding.right;
         const chartHeight = height - padding.top - padding.bottom;
 

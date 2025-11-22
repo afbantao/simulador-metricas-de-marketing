@@ -1076,6 +1076,7 @@ class SimulatorApp {
         }
 
         // Guardar todos os dados recalculados e atualizar posição financeira
+        // (só decisões reais afetam, não o histórico)
         const teamCodes = this.getTeamCodes();
         const initialEquity = 300000;
         const initialLiabilities = 200000;
@@ -1083,28 +1084,26 @@ class SimulatorApp {
         teamCodes.forEach(code => {
             const teamData = this._recalculatedTeamsData[code];
             if (teamData) {
-                // Calcular lucro acumulado de todos os períodos
-                let accumulatedProfit = 0;
+                // Calcular lucro apenas das decisões reais (período >= 6, ou seja, Q2 2025+)
+                let realDecisionsProfit = 0;
                 teamData.products.forEach(product => {
-                    product.periods.forEach(period => {
-                        if (period.data && period.data.profit) {
-                            accumulatedProfit += period.data.profit;
+                    product.periods.forEach((period, index) => {
+                        // Períodos 1-5 são histórico (índices 0-4), período 6+ são decisões reais
+                        if (index >= 5 && period.data && period.data.profit) {
+                            realDecisionsProfit += period.data.profit;
                         }
                     });
                 });
 
-                // Atualizar posição financeira
-                teamData.globalData.equity = initialEquity + accumulatedProfit;
+                // Atualizar posição financeira baseada apenas em decisões reais
+                teamData.globalData.equity = initialEquity + realDecisionsProfit;
 
                 if (teamData.globalData.equity < 0) {
-                    // Se capitais próprios negativos, passivo aumenta
                     teamData.globalData.totalLiabilities = initialLiabilities - teamData.globalData.equity;
                 } else {
-                    // Passivo mantém-se no valor inicial
                     teamData.globalData.totalLiabilities = initialLiabilities;
                 }
 
-                // Ativo = Capitais Próprios + Passivo
                 teamData.globalData.totalAssets = teamData.globalData.equity + teamData.globalData.totalLiabilities;
 
                 this.saveTeamData(code, teamData);

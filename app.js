@@ -1683,8 +1683,8 @@ class SimulatorApp {
 
             adChannelPerformance[channelId] = {
                 investment: Math.round(channelInvestment * 100) / 100,
-                newCustomers: newCustomers,
-                efficiency: Math.round(efficiency * 1000) / 10
+                customersAcquired: newCustomers,
+                cac: newCustomers > 0 ? Math.round((channelInvestment / newCustomers) * 100) / 100 : 0
             };
         });
 
@@ -2725,7 +2725,7 @@ class SimulatorApp {
 
                 // Calcular valores para Break-Even
                 const globalDec = periodData.globalDecisions;
-                const globalInvestmentsShare = globalDec.retentionInvestment + globalDec.brandInvestment + globalDec.customerService + globalDec.processImprovement;
+                const globalInvestmentsShare = (globalDec.retentionInvestment + globalDec.brandInvestment + globalDec.customerService + globalDec.processImprovement) / 3;
                 const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShare;
                 const custoVarUnitTotal = (data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold;
                 const precoMedioVenda = data.revenue / data.unitsSold;

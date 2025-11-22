@@ -3602,10 +3602,19 @@ class SimulatorApp {
 
     // ===== FORMATAÇÃO =====
     formatCurrency(value) {
+        // Usar espaço não quebrável visível como separador de milhares
         return new Intl.NumberFormat('pt-PT', {
             style: 'currency',
-            currency: 'EUR'
-        }).format(value);
+            currency: 'EUR',
+            useGrouping: true
+        }).format(value).replace(/\s/g, '\u00A0');
+    }
+
+    formatNumber(value) {
+        // Usar espaço não quebrável visível como separador de milhares
+        return new Intl.NumberFormat('pt-PT', {
+            useGrouping: true
+        }).format(value).replace(/\s/g, '\u00A0');
     }
 
     // ===== EVENT LISTENERS =====

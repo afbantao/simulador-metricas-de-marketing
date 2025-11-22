@@ -2755,7 +2755,7 @@ class SimulatorApp {
                             <tr>
                                 <td>${channelName}</td>
                                 <td>${this.formatCurrency(ch.investment)}</td>
-                                <td>${ch.customersAcquired}</td>
+                                <td>${ch.customersAcquired !== undefined ? ch.customersAcquired.toLocaleString('pt-PT') : 'N/A'}</td>
                             </tr>`;
                     });
 

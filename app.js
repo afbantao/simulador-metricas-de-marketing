@@ -2311,6 +2311,9 @@ class SimulatorApp {
         const currentPeriod = lastSimulatedPeriod || simData.currentPeriod - 1;
         const periodsCount = allTeams[teamCodes[0]]?.products[0]?.periods.filter(p => p.data !== null).length || 0;
 
+        // Recolher dados de todas as equipas
+        const teamsData = [];
+
         teamCodes.forEach(code => {
             const team = allTeams[code];
             if (!team) return;
@@ -2347,6 +2350,25 @@ class SimulatorApp {
                 teamAccumulatedProfit += periodProfit;
             }
 
+            // Guardar dados da equipa
+            teamsData.push({
+                code,
+                team,
+                teamRevenue,
+                teamProfit,
+                teamCustomers,
+                teamAccumulatedProfit
+            });
+
+            totalMarketRevenue += teamRevenue;
+            totalMarketCustomers += teamCustomers;
+        });
+
+        // Ordenar por lucro acumulado (maior para menor)
+        teamsData.sort((a, b) => b.teamAccumulatedProfit - a.teamAccumulatedProfit);
+
+        // Renderizar tabela ordenada
+        teamsData.forEach(({ code, team, teamRevenue, teamProfit, teamCustomers, teamAccumulatedProfit }) => {
             const row = document.createElement('tr');
             if (code === this.currentUser) {
                 row.classList.add('highlight');
@@ -2364,9 +2386,6 @@ class SimulatorApp {
                 <td style="${teamAccumulatedProfit >= 0 ? 'color: #10b981;' : 'color: #ef4444;'} font-weight: 700; font-size: 15px;">${this.formatCurrency(teamAccumulatedProfit)}</td>
             `;
             tbody.appendChild(row);
-
-            totalMarketRevenue += teamRevenue;
-            totalMarketCustomers += teamCustomers;
         });
 
         document.getElementById('totalMarket').textContent = this.formatCurrency(totalMarketRevenue);

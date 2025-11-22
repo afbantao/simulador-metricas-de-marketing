@@ -27,10 +27,10 @@ const CONFIG = {
     },
     // Sazonalidade por trimestre e tipo de produto
     SEASONALITY: {
-        1: { // Q1 (Jan-Mar): Pós-Natal, vendas baixas
-            premium: { demand: 0.95, price: 1.00, churn: 0.95 },
-            midrange: { demand: 0.85, price: 0.98, churn: 1.10 },
-            economic: { demand: 0.80, price: 0.95, churn: 1.15 }
+        1: { // Q1 (Jan-Mar): Pós-Natal, vendas moderadas
+            premium: { demand: 0.96, price: 1.00, churn: 0.95 },
+            midrange: { demand: 0.92, price: 0.98, churn: 1.05 },
+            economic: { demand: 0.88, price: 0.96, churn: 1.10 }
         },
         2: { // Q2 (Abr-Jun): Primavera, vendas normais
             premium: { demand: 1.00, price: 1.00, churn: 1.00 },
@@ -38,9 +38,9 @@ const CONFIG = {
             economic: { demand: 1.00, price: 1.00, churn: 1.00 }
         },
         3: { // Q3 (Jul-Set): Verão, vendas baixas (férias)
-            premium: { demand: 0.98, price: 1.02, churn: 0.90 },
-            midrange: { demand: 0.90, price: 0.97, churn: 1.05 },
-            economic: { demand: 0.85, price: 0.95, churn: 1.12 }
+            premium: { demand: 0.92, price: 1.00, churn: 1.00 },
+            midrange: { demand: 0.85, price: 0.96, churn: 1.10 },
+            economic: { demand: 0.80, price: 0.94, churn: 1.15 }
         },
         4: { // Q4 (Out-Dez): Natal, vendas altas
             premium: { demand: 1.15, price: 1.05, churn: 0.85 },
@@ -75,30 +75,26 @@ const CONFIG = {
     DISTRIBUTION_CHANNELS: {
         ownStores: {
             name: 'Lojas Próprias',
-            marginMultiplier: 1.00,      // Margem base
+            marginMultiplier: 0.65,       // Margem líquida do canal
             volumeCapacity: 0.35,         // Máx 35% das vendas
-            shareOfWallet: 0.65,          // Clientes gastam 65%
             costs: 0.08                   // 8% custos operacionais extra
         },
         retailers: {
             name: 'Retalhistas',
-            marginMultiplier: 0.75,       // 25% comissão retalhista
+            marginMultiplier: 0.45,       // Margem líquida do canal
             volumeCapacity: 0.45,         // Máx 45% das vendas
-            shareOfWallet: 0.45,
             costs: 0.03
         },
         ecommerce: {
             name: 'E-commerce',
-            marginMultiplier: 0.90,       // 10% custos plataforma
+            marginMultiplier: 0.55,       // Margem líquida do canal
             volumeCapacity: 0.30,
-            shareOfWallet: 0.55,
             costs: 0.05
         },
         wholesalers: {
             name: 'Grossistas',
-            marginMultiplier: 0.60,       // 40% desconto grossista
+            marginMultiplier: 0.30,       // Margem líquida do canal
             volumeCapacity: 0.50,
-            shareOfWallet: 0.30,
             costs: 0.02
         }
     }
@@ -709,8 +705,8 @@ class SimulatorApp {
                     const targetUnits = baseUnitsSold * channelPercentage;
                     const unitsInChannel = Math.min(targetUnits, maxUnits);
 
-                    // Preço efectivo com share of wallet do canal
-                    const effectivePrice = basePrice * channel.shareOfWallet;
+                    // Preço efectivo com margem do canal
+                    const effectivePrice = basePrice * channel.marginMultiplier;
                     const channelRevenue = unitsInChannel * effectivePrice;
                     const channelMargin = (effectivePrice - profile.baseCost) * channel.marginMultiplier;
                     const channelCosts = channelRevenue * channel.costs;
@@ -725,7 +721,7 @@ class SimulatorApp {
                         revenue: Math.round(channelRevenue * 100) / 100,
                         margin: Math.round(channelMargin * 100) / 100,
                         operationalCosts: Math.round(channelCosts * 100) / 100,
-                        shareOfWallet: channel.shareOfWallet
+                        marginMultiplier: channel.marginMultiplier
                     };
                 });
 
@@ -1737,8 +1733,8 @@ class SimulatorApp {
             const targetUnits = baseUnitsSold * channelPercentage;
             const unitsInChannel = Math.min(targetUnits, maxUnits);
 
-            // Preço efectivo com share of wallet do canal
-            const effectivePrice = basePrice * channel.shareOfWallet;
+            // Preço efectivo com margem do canal
+            const effectivePrice = basePrice * channel.marginMultiplier;
 
             // Receita do canal
             const channelRevenue = unitsInChannel * effectivePrice;
@@ -1760,7 +1756,7 @@ class SimulatorApp {
                 revenue: Math.round(channelRevenue * 100) / 100,
                 margin: Math.round(channelMargin * 100) / 100,
                 operationalCosts: Math.round(channelCosts * 100) / 100,
-                shareOfWallet: channel.shareOfWallet
+                marginMultiplier: channel.marginMultiplier
             };
         });
 
@@ -1771,13 +1767,14 @@ class SimulatorApp {
         const baseCost = productType === 'premium' ? 45 : productType === 'midrange' ? 35 : 25;
         const unitVariableCost = baseCost * costReduction;
         const variableCosts = totalUnitsSold * unitVariableCost;
-        const fixedCosts = productType === 'premium' ? 50000 : productType === 'midrange' ? 45000 : 40000;
+        const fixedCosts = productType === 'premium' ? 80000 : productType === 'midrange' ? 75000 : 70000;
         const salesCommissions = totalRevenue * (decisions.salesCommission / 100);
 
         const totalCosts = variableCosts + fixedCosts + salesCommissions + totalDistributionCosts;
-        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment +
-                                globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
-                                globalDecisions.customerService + globalDecisions.processImprovement;
+        // Investimentos globais divididos por 3 produtos
+        const globalInvestmentsShare = (globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
+                                globalDecisions.customerService + globalDecisions.processImprovement) / 3;
+        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment + globalInvestmentsShare;
 
         // Margem média ponderada
         let weightedMargin = 0;
@@ -1895,8 +1892,8 @@ class SimulatorApp {
             const targetUnits = baseUnitsSold * channelPercentage;
             const unitsInChannel = Math.min(targetUnits, maxUnits);
 
-            // Preço efectivo com share of wallet do canal
-            const effectivePrice = basePrice * channel.shareOfWallet;
+            // Preço efectivo com margem do canal
+            const effectivePrice = basePrice * channel.marginMultiplier;
             const channelRevenue = unitsInChannel * effectivePrice;
             const baseCost = productType === 'premium' ? 45 : productType === 'midrange' ? 35 : 25;
             const channelMargin = (effectivePrice - baseCost) * channel.marginMultiplier;
@@ -1914,7 +1911,7 @@ class SimulatorApp {
                 revenue: Math.round(channelRevenue * 100) / 100,
                 margin: Math.round(channelMargin * 100) / 100,
                 operationalCosts: Math.round(channelCosts * 100) / 100,
-                shareOfWallet: channel.shareOfWallet
+                marginMultiplier: channel.marginMultiplier
             };
         });
 
@@ -1929,9 +1926,10 @@ class SimulatorApp {
         const salesCommissions = totalRevenue * (decisions.salesCommission / 100);
 
         const totalCosts = variableCosts + fixedCosts + salesCommissions + totalDistributionCosts;
-        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment +
-                                globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
-                                globalDecisions.customerService + globalDecisions.processImprovement;
+        // Investimentos globais divididos por 3 produtos
+        const globalInvestmentsShare = (globalDecisions.retentionInvestment + globalDecisions.brandInvestment +
+                                globalDecisions.customerService + globalDecisions.processImprovement) / 3;
+        const totalInvestments = decisions.marketingInvestment + decisions.qualityInvestment + globalInvestmentsShare;
 
         // Margem média ponderada
         let weightedMargin = 0;
@@ -2173,8 +2171,8 @@ class SimulatorApp {
         const data = latestPeriod.data;
         const globalDec = latestPeriod.globalDecisions;
 
-        // Investimentos globais (todos, para corresponder ao cálculo do lucro)
-        const globalInvestmentsTotal = globalDec.retentionInvestment + globalDec.brandInvestment + globalDec.customerService + globalDec.processImprovement;
+        // Investimentos globais divididos por 3 produtos
+        const globalInvestmentsShare = (globalDec.retentionInvestment + globalDec.brandInvestment + globalDec.customerService + globalDec.processImprovement) / 3;
 
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
@@ -2223,19 +2221,19 @@ class SimulatorApp {
                             <div class="data-row"><span>− Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
                             <div class="data-row"><span>− Marketing</span><strong>${this.formatCurrency(data.marketingCost)}</strong></div>
                             <div class="data-row"><span>− Qualidade</span><strong>${this.formatCurrency(data.qualityCost)}</strong></div>
-                            <div class="data-row"><span>− Invest. Globais</span><strong>${this.formatCurrency(globalInvestmentsTotal)}</strong></div>
+                            <div class="data-row"><span>− Invest. Globais (1/3)</span><strong>${this.formatCurrency(globalInvestmentsShare)}</strong></div>
                             <div class="data-row" style="border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 8px;"><span><strong>= Lucro</strong></span><strong style="color: ${data.profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(data.profit)}</strong></div>
                         </div>
                         <div class="data-card">
                             <h3>📊 Estimativa Break-Even</h3>
                             <p style="font-size: 11px; color: #6b7280; margin-bottom: 12px;">Valores pré-calculados para facilitar a estimativa do ponto de equilíbrio.</p>
-                            <div class="data-row"><span>Custos Fixos Totais</span><strong>${this.formatCurrency(data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsTotal)}</strong></div>
+                            <div class="data-row"><span>Custos Fixos Totais</span><strong>${this.formatCurrency(data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShare)}</strong></div>
                             <div class="data-row" style="font-size: 10px; color: #6b7280;"><span>(Produção + Marketing + Qualidade + Invest. Globais)</span></div>
                             <div class="data-row"><span>Custo Var. Unit. Total</span><strong>${this.formatCurrency((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold)}</strong></div>
                             <div class="data-row" style="font-size: 10px; color: #6b7280;"><span>(Produção + Distribuição + Comissões)</span></div>
                             <div class="data-row"><span>Preço Médio de Venda</span><strong>${this.formatCurrency(data.revenue / data.unitsSold)}</strong></div>
                             <div class="data-row"><span>Margem de Contribuição Unitária</span><strong>${this.formatCurrency((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))}</strong></div>
-                            <div class="data-row" style="border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 8px;"><span><strong>BEP = CF ÷ MC</strong></span><strong>${Math.ceil((data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsTotal) / ((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))).toLocaleString('pt-PT')} unid.</strong></div>
+                            <div class="data-row" style="border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 8px;"><span><strong>BEP = CF ÷ MC</strong></span><strong>${Math.ceil((data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShare) / ((data.revenue / data.unitsSold) - ((data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold))).toLocaleString('pt-PT')} unid.</strong></div>
                         </div>
                     </div>
                 </div>
@@ -2714,8 +2712,8 @@ class SimulatorApp {
 
                 // Calcular valores para Break-Even
                 const globalDec = periodData.globalDecisions;
-                const globalInvestmentsTotal = globalDec.retentionInvestment + globalDec.brandInvestment + globalDec.customerService + globalDec.processImprovement;
-                const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsTotal;
+                const globalInvestmentsShare = globalDec.retentionInvestment + globalDec.brandInvestment + globalDec.customerService + globalDec.processImprovement;
+                const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShare;
                 const custoVarUnitTotal = (data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold;
                 const precoMedioVenda = data.revenue / data.unitsSold;
                 const margemContribuicao = precoMedioVenda - custoVarUnitTotal;
@@ -2823,7 +2821,7 @@ class SimulatorApp {
                                 <div class="calc-row negative"><span>− Comissões</span><strong>${this.formatCurrency(data.salesCommissions)}</strong></div>
                                 <div class="calc-row negative"><span>− Marketing</span><strong>${this.formatCurrency(data.marketingCost)}</strong></div>
                                 <div class="calc-row negative"><span>− Qualidade</span><strong>${this.formatCurrency(data.qualityCost)}</strong></div>
-                                <div class="calc-row negative"><span>− Invest. Globais</span><strong>${this.formatCurrency(globalInvestmentsTotal)}</strong></div>
+                                <div class="calc-row negative"><span>− Invest. Globais (1/3)</span><strong>${this.formatCurrency(globalInvestmentsShare)}</strong></div>
                                 <div class="calc-row total"><span>= Lucro</span><strong style="color: ${data.profit >= 0 ? '#10b981' : '#ef4444'}">${this.formatCurrency(data.profit)}</strong></div>
                             </div>
                         </div>
@@ -2984,13 +2982,13 @@ class SimulatorApp {
             sheetData.push(['− Marketing', data.marketingCost]);
             sheetData.push(['− Qualidade', data.qualityCost]);
             const globalDecExcel = periodData.globalDecisions;
-            const globalInvestmentsTotalExcel = globalDecExcel.retentionInvestment + globalDecExcel.brandInvestment + globalDecExcel.customerService + globalDecExcel.processImprovement;
-            sheetData.push(['− Invest. Globais', globalInvestmentsTotalExcel]);
+            const globalInvestmentsShareExcel = (globalDecExcel.retentionInvestment + globalDecExcel.brandInvestment + globalDecExcel.customerService + globalDecExcel.processImprovement) / 3;
+            sheetData.push(['− Invest. Globais (1/3)', globalInvestmentsShareExcel]);
             sheetData.push(['= Lucro', data.profit]);
             sheetData.push([]);
 
             // Break-Even Point
-            const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsTotalExcel;
+            const custosFixosTotais = data.fixedCosts + data.marketingCost + data.qualityCost + globalInvestmentsShareExcel;
             const custoVarUnitTotal = (data.variableCosts + data.distributionCosts + data.salesCommissions) / data.unitsSold;
             const precoMedioVenda = data.revenue / data.unitsSold;
             const margemContribuicao = precoMedioVenda - custoVarUnitTotal;

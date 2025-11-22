@@ -1024,30 +1024,30 @@ class SimulatorApp {
             });
         });
 
-        if (changes.length === 0) {
-            alert('Recálculo completo. Não foram encontradas diferenças significativas nos valores.');
-            return;
-        }
-
         // Mostrar resumo das alterações
-        let summaryHTML = `<h3>Alterações a aplicar (${changes.length} produtos afetados):</h3><div style="max-height: 400px; overflow-y: auto;"><table style="width:100%; border-collapse: collapse; font-size: 12px;">
+        let summaryHTML;
+        if (changes.length === 0) {
+            summaryHTML = `<h3>Recálculo completo</h3><p>Não foram encontradas diferenças significativas nos valores de receita/lucro, mas a estrutura dos dados será atualizada (campos em falta, etc.).</p>`;
+        } else {
+            summaryHTML = `<h3>Alterações a aplicar (${changes.length} produtos afetados):</h3><div style="max-height: 400px; overflow-y: auto;"><table style="width:100%; border-collapse: collapse; font-size: 12px;">
             <tr style="background:#f0f0f0;"><th style="padding:8px;border:1px solid #ddd;">Equipa</th><th style="padding:8px;border:1px solid #ddd;">Produto</th><th style="padding:8px;border:1px solid #ddd;">Período</th><th style="padding:8px;border:1px solid #ddd;">Receita Antiga</th><th style="padding:8px;border:1px solid #ddd;">Receita Nova</th><th style="padding:8px;border:1px solid #ddd;">Lucro Antigo</th><th style="padding:8px;border:1px solid #ddd;">Lucro Novo</th></tr>`;
 
-        changes.forEach(change => {
-            const revDiff = change.newRevenue - change.oldRevenue;
-            const profDiff = change.newProfit - change.oldProfit;
-            summaryHTML += `<tr>
-                <td style="padding:6px;border:1px solid #ddd;">${change.team}</td>
-                <td style="padding:6px;border:1px solid #ddd;">${change.product}</td>
-                <td style="padding:6px;border:1px solid #ddd;">${change.period}</td>
-                <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.oldRevenue)}</td>
-                <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.newRevenue)} <span style="color:${revDiff >= 0 ? 'green' : 'red'}">(${revDiff >= 0 ? '+' : ''}${this.formatCurrency(revDiff)})</span></td>
-                <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.oldProfit)}</td>
-                <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.newProfit)} <span style="color:${profDiff >= 0 ? 'green' : 'red'}">(${profDiff >= 0 ? '+' : ''}${this.formatCurrency(profDiff)})</span></td>
-            </tr>`;
-        });
+            changes.forEach(change => {
+                const revDiff = change.newRevenue - change.oldRevenue;
+                const profDiff = change.newProfit - change.oldProfit;
+                summaryHTML += `<tr>
+                    <td style="padding:6px;border:1px solid #ddd;">${change.team}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${change.product}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${change.period}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.oldRevenue)}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.newRevenue)} <span style="color:${revDiff >= 0 ? 'green' : 'red'}">(${revDiff >= 0 ? '+' : ''}${this.formatCurrency(revDiff)})</span></td>
+                    <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.oldProfit)}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${this.formatCurrency(change.newProfit)} <span style="color:${profDiff >= 0 ? 'green' : 'red'}">(${profDiff >= 0 ? '+' : ''}${this.formatCurrency(profDiff)})</span></td>
+                </tr>`;
+            });
 
-        summaryHTML += '</table></div>';
+            summaryHTML += '</table></div>';
+        }
 
         // Criar modal de confirmação
         const modal = document.createElement('div');

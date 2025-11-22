@@ -37,10 +37,10 @@ const CONFIG = {
             midrange: { demand: 1.00, price: 1.00, churn: 1.00 },
             economic: { demand: 1.00, price: 1.00, churn: 1.00 }
         },
-        3: { // Q3 (Jul-Set): Verão, vendas baixas (férias)
-            premium: { demand: 0.92, price: 1.00, churn: 1.00 },
-            midrange: { demand: 0.85, price: 0.96, churn: 1.10 },
-            economic: { demand: 0.80, price: 0.94, churn: 1.15 }
+        3: { // Q3 (Jul-Set): Verão, vendas moderadas
+            premium: { demand: 0.94, price: 1.00, churn: 0.98 },
+            midrange: { demand: 0.90, price: 0.98, churn: 1.05 },
+            economic: { demand: 0.85, price: 0.96, churn: 1.08 }
         },
         4: { // Q4 (Out-Dez): Natal, vendas altas
             premium: { demand: 1.15, price: 1.05, churn: 0.85 },
@@ -1788,7 +1788,7 @@ class SimulatorApp {
         const baseCost = productType === 'premium' ? 45 : productType === 'midrange' ? 35 : 25;
         const unitVariableCost = baseCost * costReduction;
         const variableCosts = totalUnitsSold * unitVariableCost;
-        const fixedCosts = productType === 'premium' ? 80000 : productType === 'midrange' ? 75000 : 70000;
+        const fixedCosts = productType === 'premium' ? 60000 : productType === 'midrange' ? 55000 : 50000;
         const salesCommissions = totalRevenue * (decisions.salesCommission / 100);
 
         const totalCosts = variableCosts + fixedCosts + salesCommissions + totalDistributionCosts;

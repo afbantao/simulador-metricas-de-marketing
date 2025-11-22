@@ -27,10 +27,10 @@ const CONFIG = {
     },
     // Sazonalidade por trimestre e tipo de produto
     SEASONALITY: {
-        1: { // Q1 (Jan-Mar): Pós-Natal, vendas moderadas
-            premium: { demand: 0.96, price: 1.00, churn: 0.95 },
-            midrange: { demand: 0.92, price: 0.98, churn: 1.05 },
-            economic: { demand: 0.88, price: 0.96, churn: 1.10 }
+        1: { // Q1 (Jan-Mar): Pós-Natal, vendas baixas
+            premium: { demand: 0.90, price: 1.00, churn: 1.00 },
+            midrange: { demand: 0.86, price: 0.98, churn: 1.08 },
+            economic: { demand: 0.82, price: 0.96, churn: 1.12 }
         },
         2: { // Q2 (Abr-Jun): Primavera, vendas normais
             premium: { demand: 1.00, price: 1.00, churn: 1.00 },

@@ -1075,11 +1075,38 @@ class SimulatorApp {
             return;
         }
 
-        // Guardar todos os dados recalculados
+        // Guardar todos os dados recalculados e atualizar posição financeira
         const teamCodes = this.getTeamCodes();
+        const initialEquity = 300000;
+        const initialLiabilities = 200000;
+
         teamCodes.forEach(code => {
             const teamData = this._recalculatedTeamsData[code];
             if (teamData) {
+                // Calcular lucro acumulado de todos os períodos
+                let accumulatedProfit = 0;
+                teamData.products.forEach(product => {
+                    product.periods.forEach(period => {
+                        if (period.data && period.data.profit) {
+                            accumulatedProfit += period.data.profit;
+                        }
+                    });
+                });
+
+                // Atualizar posição financeira
+                teamData.globalData.equity = initialEquity + accumulatedProfit;
+
+                if (teamData.globalData.equity < 0) {
+                    // Se capitais próprios negativos, passivo aumenta
+                    teamData.globalData.totalLiabilities = initialLiabilities - teamData.globalData.equity;
+                } else {
+                    // Passivo mantém-se no valor inicial
+                    teamData.globalData.totalLiabilities = initialLiabilities;
+                }
+
+                // Ativo = Capitais Próprios + Passivo
+                teamData.globalData.totalAssets = teamData.globalData.equity + teamData.globalData.totalLiabilities;
+
                 this.saveTeamData(code, teamData);
             }
         });
@@ -1091,7 +1118,7 @@ class SimulatorApp {
         const modal = document.querySelector('.preview-modal');
         if (modal) modal.remove();
 
-        alert('Recálculo aplicado com sucesso! Os dados foram atualizados.');
+        alert('Recálculo aplicado com sucesso! Os dados e posição financeira foram atualizados.');
         this.loadAdminPanel();
     }
 

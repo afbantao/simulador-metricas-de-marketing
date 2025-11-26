@@ -3380,8 +3380,8 @@ class SimulatorApp {
             return;
         }
 
-        const teamsData = firebaseSync.load(CONFIG.STORAGE_KEYS.TEAMS_DATA);
-        const simData = firebaseSync.load(CONFIG.STORAGE_KEYS.SIMULATION_DATA);
+        const teamsData = this.getAllTeamsData();
+        const simData = this.getSimulationData();
 
         if (!teamsData || !simData) {
             alert('Não há dados para resetar!');
@@ -3401,8 +3401,8 @@ class SimulatorApp {
         simData.currentPeriod = CONFIG.HISTORICAL_PERIODS + 1;
 
         // Guardar dados atualizados
-        firebaseSync.save(CONFIG.STORAGE_KEYS.TEAMS_DATA, teamsData);
-        firebaseSync.save(CONFIG.STORAGE_KEYS.SIMULATION_DATA, simData);
+        this.saveAllTeamsData(teamsData);
+        this.saveSimulationData(simData);
 
         alert(`Decisões apagadas com sucesso!\nHistórico dos ${CONFIG.HISTORICAL_PERIODS} trimestres mantido.\nPróximo período: ${this.getQuarterLabel(simData.currentPeriod)}`);
         this.loadAdminPanel();

@@ -3375,6 +3375,39 @@ class SimulatorApp {
         this.loadAdminPanel();
     }
 
+    resetDecisionsOnly() {
+        if (!confirm('Isto irá apagar APENAS as decisões das equipas (Q2 2025 em diante).\nO histórico dos 5 trimestres será mantido intacto.\n\nContinuar?')) {
+            return;
+        }
+
+        const teamsData = firebaseSync.load(CONFIG.STORAGE_KEYS.TEAMS_DATA);
+        const simData = firebaseSync.load(CONFIG.STORAGE_KEYS.SIMULATION_DATA);
+
+        if (!teamsData || !simData) {
+            alert('Não há dados para resetar!');
+            return;
+        }
+
+        // Manter apenas os períodos históricos (1-5) para cada produto de cada equipa
+        Object.keys(teamsData).forEach(teamCode => {
+            const team = teamsData[teamCode];
+            team.products.forEach(product => {
+                // Manter apenas os primeiros 5 períodos (histórico)
+                product.periods = product.periods.slice(0, CONFIG.HISTORICAL_PERIODS);
+            });
+        });
+
+        // Reset do período atual para Q2 2025 (período 6)
+        simData.currentPeriod = CONFIG.HISTORICAL_PERIODS + 1;
+
+        // Guardar dados atualizados
+        firebaseSync.save(CONFIG.STORAGE_KEYS.TEAMS_DATA, teamsData);
+        firebaseSync.save(CONFIG.STORAGE_KEYS.SIMULATION_DATA, simData);
+
+        alert(`Decisões apagadas com sucesso!\nHistórico dos ${CONFIG.HISTORICAL_PERIODS} trimestres mantido.\nPróximo período: ${this.getQuarterLabel(simData.currentPeriod)}`);
+        this.loadAdminPanel();
+    }
+
     changePassword(newPassword) {
         if (!newPassword || newPassword.length < 6) {
             alert('A palavra-passe deve ter pelo menos 6 caracteres!');

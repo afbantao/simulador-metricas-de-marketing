@@ -1556,11 +1556,23 @@ class SimulatorApp {
                 periodTotalProfit += newPeriodData.profit;
             });
 
-            // Atualizar posição financeira com base no lucro líquido
-            const initialLiabilities = 200000; // Passivo inicial fixo
+            // Atualizar posição financeira - calcular do zero para evitar acumulação de erros
+            const initialEquity = 300000;
+            const initialLiabilities = 200000;
 
-            // Capitais próprios = valor anterior + lucro do período
-            teamData.globalData.equity += periodTotalProfit;
+            // Calcular lucro total de TODAS as decisões reais (período >= 6)
+            let totalRealDecisionsProfit = 0;
+            teamData.products.forEach(product => {
+                product.periods.forEach((period, index) => {
+                    // Períodos 1-5 são histórico (índices 0-4), período 6+ são decisões reais (índices 5+)
+                    if (index >= CONFIG.HISTORICAL_PERIODS && period.data && period.data.profit) {
+                        totalRealDecisionsProfit += period.data.profit;
+                    }
+                });
+            });
+
+            // Capitais próprios = valor inicial + lucro total das decisões reais
+            teamData.globalData.equity = initialEquity + totalRealDecisionsProfit;
 
             // Equação contabilística: Ativo = Capitais Próprios + Passivo
             if (teamData.globalData.equity < 0) {
@@ -3404,7 +3416,74 @@ class SimulatorApp {
         this.saveAllTeamsData(teamsData);
         this.saveSimulationData(simData);
 
+        // Corrigir valores do balanço
+        this.fixBalanceValues(teamsData);
+
         alert(`Decisões apagadas com sucesso!\nHistórico dos ${CONFIG.HISTORICAL_PERIODS} trimestres mantido.\nPróximo período: ${this.getQuarterLabel(simData.currentPeriod)}`);
+        this.loadAdminPanel();
+    }
+
+    // Corrige os valores do balanço de todas as equipas baseado no lucro das decisões reais
+    fixBalanceValues(teamsDataParam = null) {
+        const teamsData = teamsDataParam || this.getAllTeamsData();
+        if (!teamsData) {
+            console.log('Nenhum dado de equipas para corrigir');
+            return;
+        }
+
+        const initialEquity = 300000;
+        const initialLiabilities = 200000;
+
+        Object.keys(teamsData).forEach(teamCode => {
+            const teamData = teamsData[teamCode];
+            if (!teamData || !teamData.products) return;
+
+            // Calcular lucro apenas das decisões reais (período >= 6, ou seja, índice >= 5)
+            let realDecisionsProfit = 0;
+            teamData.products.forEach(product => {
+                product.periods.forEach((period, index) => {
+                    // Períodos 1-5 são histórico (índices 0-4), período 6+ são decisões reais (índices 5+)
+                    if (index >= CONFIG.HISTORICAL_PERIODS && period.data && period.data.profit) {
+                        realDecisionsProfit += period.data.profit;
+                    }
+                });
+            });
+
+            // Atualizar posição financeira baseada apenas em decisões reais
+            teamData.globalData.equity = initialEquity + realDecisionsProfit;
+
+            if (teamData.globalData.equity < 0) {
+                // Se capitais próprios negativos, passivo aumenta para cobrir
+                teamData.globalData.totalLiabilities = initialLiabilities - teamData.globalData.equity;
+            } else {
+                teamData.globalData.totalLiabilities = initialLiabilities;
+            }
+
+            // Ativo = Capitais Próprios + Passivo
+            teamData.globalData.totalAssets = teamData.globalData.equity + teamData.globalData.totalLiabilities;
+
+            // Se não foi passado como parâmetro, guardar individualmente
+            if (!teamsDataParam) {
+                this.saveTeamData(teamCode, teamData);
+            }
+        });
+
+        // Se foi passado como parâmetro, guardar tudo junto
+        if (teamsDataParam) {
+            this.saveAllTeamsData(teamsData);
+        }
+
+        console.log('Valores do balanço corrigidos para todas as equipas');
+    }
+
+    // Versão com confirmação para o botão do painel admin
+    fixBalanceValuesWithConfirm() {
+        if (!confirm('Isto irá recalcular os valores do balanço (Ativo, Capitais Próprios, Passivo) de todas as equipas.\n\nO cálculo será: CP = 300.000 + Lucro das decisões reais (Q2 2025+)\n\nContinuar?')) {
+            return;
+        }
+
+        this.fixBalanceValues();
+        alert('Valores do balanço corrigidos com sucesso!');
         this.loadAdminPanel();
     }
 

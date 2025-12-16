@@ -3498,6 +3498,79 @@ class SimulatorApp {
         this.loadAdminPanel();
     }
 
+    boostTeam2Performance() {
+        if (!confirm('Isto irá melhorar o desempenho da Equipa 2 (J7PLVW2U7D) no último trimestre simulado.\n\nSerão aumentadas as receitas, lucros e base de clientes de forma proporcional.\n\nContinuar?')) {
+            return;
+        }
+
+        const teamsData = this.getAllTeamsData();
+        const teamCode = 'J7PLVW2U7D';
+        const team = teamsData[teamCode];
+
+        if (!team) {
+            alert('Erro: Equipa 2 (J7PLVW2U7D) não encontrada!');
+            return;
+        }
+
+        // Encontrar o último trimestre simulado (não pendente)
+        let ultimoTrimestreIndex = -1;
+        team.products[0].periods.forEach((period, index) => {
+            if (period.data !== null && period.status !== 'pending') {
+                ultimoTrimestreIndex = index;
+            }
+        });
+
+        if (ultimoTrimestreIndex === -1) {
+            alert('Erro: Nenhum trimestre simulado encontrado para a Equipa 2!');
+            return;
+        }
+
+        const quarterLabel = this.getQuarterLabel(ultimoTrimestreIndex + 1);
+
+        // Fatores de melhoria
+        const fatorReceita = 2.5;
+        const fatorLucro = 2.5;
+        const fatorClientes = 1.5;
+        const fatorNovosClientes = 2.0;
+
+        let melhorias = `Melhorias aplicadas ao ${quarterLabel}:\n\n`;
+
+        // Aplicar melhorias a cada produto
+        team.products.forEach((product, idx) => {
+            const period = product.periods[ultimoTrimestreIndex];
+            if (period && period.data) {
+                const revenueAntes = period.data.revenue;
+                const lucroAntes = period.data.profit;
+                const clientesAntes = period.data.customerBase;
+                const novosAntes = period.data.newCustomers;
+
+                // Melhorar métricas
+                period.data.revenue = Math.round(period.data.revenue * fatorReceita * 100) / 100;
+                period.data.profit = Math.round(period.data.profit * fatorLucro * 100) / 100;
+                period.data.customerBase = Math.round(period.data.customerBase * fatorClientes);
+                period.data.newCustomers = Math.round(period.data.newCustomers * fatorNovosClientes);
+
+                // Ajustar custos para manter coerência
+                const custoTotal = period.data.revenue - period.data.profit;
+                const ratioCusto = custoTotal / (revenueAntes - lucroAntes);
+                period.data.productionCost = Math.round(period.data.productionCost * ratioCusto * 100) / 100;
+                period.data.marketingCost = Math.round(period.data.marketingCost * ratioCusto * 100) / 100;
+
+                melhorias += `${product.name}:\n`;
+                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)}\n`;
+                melhorias += `  Lucro: ${this.formatCurrency(lucroAntes)} → ${this.formatCurrency(period.data.profit)}\n`;
+                melhorias += `  Clientes: ${clientesAntes} → ${period.data.customerBase}\n`;
+                melhorias += `  Novos: ${novosAntes} → ${period.data.newCustomers}\n\n`;
+            }
+        });
+
+        // Guardar dados modificados
+        this.saveAllTeamsData(teamsData);
+
+        alert(melhorias + '✅ Desempenho da Equipa 2 melhorado com sucesso!');
+        this.loadAdminPanel();
+    }
+
     changePassword(newPassword) {
         if (!newPassword || newPassword.length < 6) {
             alert('A palavra-passe deve ter pelo menos 6 caracteres!');

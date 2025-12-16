@@ -2439,10 +2439,21 @@ class SimulatorApp {
         const chartWidth = width - padding.left - padding.right;
         const chartHeight = height - padding.top - padding.bottom;
 
-        // Encontrar min e max dos lucros
+        // Limitar a apenas os últimos 5 trimestres
+        const maxPeriodsToShow = 5;
+        const startPeriod = Math.max(0, periodsCount - maxPeriodsToShow);
+        const displayPeriodsCount = Math.min(periodsCount, maxPeriodsToShow);
+
+        // Filtrar profitEvolution para os últimos 5 períodos
+        const filteredProfitEvolution = {};
+        Object.keys(profitEvolution).forEach(teamName => {
+            filteredProfitEvolution[teamName] = profitEvolution[teamName].slice(startPeriod);
+        });
+
+        // Encontrar min e max dos lucros (apenas dos últimos 5 períodos)
         let minProfit = 0;
         let maxProfit = 0;
-        Object.values(profitEvolution).forEach(profits => {
+        Object.values(filteredProfitEvolution).forEach(profits => {
             profits.forEach(p => {
                 if (p < minProfit) minProfit = p;
                 if (p > maxProfit) maxProfit = p;
@@ -2456,7 +2467,7 @@ class SimulatorApp {
 
         // Cores para cada equipa
         const colors = ['#dc3545', '#97bcd1', '#dcbcd1', '#97dcd1', '#dcbb14', '#33bbd4', '#dc57d1', '#97dc05', '#6366f1'];
-        const teamNames = Object.keys(profitEvolution);
+        const teamNames = Object.keys(filteredProfitEvolution);
         const teamCount = teamNames.length;
 
         // Criar container com gráfico e legenda lado a lado
@@ -2483,21 +2494,21 @@ class SimulatorApp {
         }
 
         // Eixo X (trimestres)
-        for (let i = 0; i < periodsCount; i++) {
-            const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
-            const quarterLabel = this.getQuarterLabel(i + 1);
+        for (let i = 0; i < displayPeriodsCount; i++) {
+            const x = padding.left + (chartWidth / Math.max(displayPeriodsCount - 1, 1)) * i;
+            const quarterLabel = this.getQuarterLabel(startPeriod + i + 1);
             html += `<text x="${x}" y="${height - padding.bottom + 30}" text-anchor="middle"
                     font-size="13" fill="#374151">${quarterLabel}</text>`;
         }
 
         // Desenhar linhas para cada equipa
         teamNames.forEach((teamName, teamIndex) => {
-            const profits = profitEvolution[teamName];
+            const profits = filteredProfitEvolution[teamName];
             const color = colors[teamIndex % colors.length];
 
             let path = 'M ';
             profits.forEach((profit, i) => {
-                const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
+                const x = padding.left + (chartWidth / Math.max(displayPeriodsCount - 1, 1)) * i;
                 const y = padding.top + chartHeight - ((profit - minProfit) / (maxProfit - minProfit)) * chartHeight;
                 path += i === 0 ? `${x},${y}` : ` L ${x},${y}`;
             });
@@ -2507,11 +2518,11 @@ class SimulatorApp {
 
         // Desenhar pontos (sem offset)
         teamNames.forEach((teamName, teamIndex) => {
-            const profits = profitEvolution[teamName];
+            const profits = filteredProfitEvolution[teamName];
             const color = colors[teamIndex % colors.length];
 
             profits.forEach((profit, i) => {
-                const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
+                const x = padding.left + (chartWidth / Math.max(displayPeriodsCount - 1, 1)) * i;
                 const y = padding.top + chartHeight - ((profit - minProfit) / (maxProfit - minProfit)) * chartHeight;
 
                 html += `<circle cx="${x}" cy="${y}" r="5" fill="${color}" stroke="white" stroke-width="2" class="chart-point" data-team="${teamIndex}"/>`;
@@ -2519,13 +2530,13 @@ class SimulatorApp {
         });
 
         // Áreas de hover verticais por trimestre (para mostrar todas as equipas)
-        for (let i = 0; i < periodsCount; i++) {
-            const x = padding.left + (chartWidth / Math.max(periodsCount - 1, 1)) * i;
-            const quarterLabel = this.getQuarterLabel(i + 1);
+        for (let i = 0; i < displayPeriodsCount; i++) {
+            const x = padding.left + (chartWidth / Math.max(displayPeriodsCount - 1, 1)) * i;
+            const quarterLabel = this.getQuarterLabel(startPeriod + i + 1);
             const tooltipId = `tooltip-period-${i}`;
 
             // Área de hover vertical
-            const areaWidth = chartWidth / Math.max(periodsCount, 1);
+            const areaWidth = chartWidth / Math.max(displayPeriodsCount, 1);
             html += `<rect x="${x - areaWidth/2}" y="${padding.top}" width="${areaWidth}" height="${chartHeight}"
                     fill="transparent" style="cursor: crosshair;"
                     onmouseenter="document.getElementById('${tooltipId}').style.display='block'; document.getElementById('hover-line-${i}').style.display='block';"
@@ -2554,7 +2565,7 @@ class SimulatorApp {
             // Listar todas as equipas ordenadas por lucro
             const periodData = teamNames.map((name, idx) => ({
                 name,
-                profit: profitEvolution[name][i] || 0,
+                profit: filteredProfitEvolution[name][i] || 0,
                 color: colors[idx % colors.length]
             })).sort((a, b) => b.profit - a.profit);
 

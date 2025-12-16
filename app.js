@@ -3553,28 +3553,30 @@ class SimulatorApp {
                 const prodCostAntes = period.data.productionCost || 0;
                 const mktCostAntes = period.data.marketingCost || 0;
 
-                // 1. AUMENTAR RECEITA (sazonalidade favorável)
+                // 1. AUMENTAR QUANTIDADE VENDIDA (sazonalidade Q4 + procura excepcional)
+                // Receita aumenta com mais vendas
                 period.data.revenue = Math.round(period.data.revenue * fatores.receita * 100) / 100;
 
-                // 2. REDUZIR CUSTOS (eficiência operacional melhorada)
-                // Custos diminuem para gerar lucro melhor
+                // 2. AJUSTAR CUSTOS VARIÁVEIS (aumentam com produção)
+                // Custos de produção aumentam ~90% do aumento de vendas (economia de escala leve)
                 if (period.data.productionCost && !isNaN(period.data.productionCost)) {
-                    period.data.productionCost = Math.round(period.data.productionCost * 0.85 * 100) / 100; // -15%
+                    const aumentoProdução = fatores.receita;
+                    period.data.productionCost = Math.round(period.data.productionCost * (1 + (aumentoProdução - 1) * 0.90) * 100) / 100;
                 }
-                if (period.data.marketingCost && !isNaN(period.data.marketingCost)) {
-                    period.data.marketingCost = Math.round(period.data.marketingCost * 0.80 * 100) / 100; // -20%
-                }
+
+                // Custos de marketing mantêm-se (mesma campanha, mais eficaz)
+                // Não alteramos marketingCost
 
                 // 3. RECALCULAR LUCRO = Receita - Custos
                 const novosProdCost = period.data.productionCost || 0;
                 const novosMktCost = period.data.marketingCost || 0;
                 period.data.profit = Math.round((period.data.revenue - novosProdCost - novosMktCost) * 100) / 100;
 
-                // 4. MELHORAR BASE DE CLIENTES
+                // 4. AUMENTAR BASE DE CLIENTES (mais vendas = mais clientes)
                 period.data.customerBase = Math.round(period.data.customerBase * fatores.clientes);
                 period.data.newCustomers = Math.round(period.data.newCustomers * fatores.novos);
 
-                // 5. REDUZIR CHURN (menos clientes perdidos)
+                // 5. REDUZIR CHURN (clientes mais satisfeitos)
                 period.data.lostCustomers = Math.round(period.data.lostCustomers * fatores.churn);
 
                 // Recalcular churn rate
@@ -3591,11 +3593,11 @@ class SimulatorApp {
                 const variacaoLucro = lucroAntes !== 0 ? ((period.data.profit - lucroAntes) / Math.abs(lucroAntes) * 100) : 100;
 
                 melhorias += `${product.name}:\n`;
-                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)}\n`;
+                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)} (+${((fatores.receita - 1) * 100).toFixed(0)}% vendas)\n`;
                 melhorias += `  Custos Produção: ${this.formatCurrency(prodCostAntes)} → ${this.formatCurrency(novosProdCost)}\n`;
-                melhorias += `  Custos Marketing: ${this.formatCurrency(mktCostAntes)} → ${this.formatCurrency(novosMktCost)}\n`;
-                melhorias += `  Lucro: ${this.formatCurrency(lucroAntes)} → ${this.formatCurrency(period.data.profit)} (${variacaoLucro > 0 ? '+' : ''}${variacaoLucro.toFixed(0)}%)\n`;
-                melhorias += `  Clientes: ${clientesAntes} → ${period.data.customerBase}\n\n`;
+                melhorias += `  Custos Marketing: ${this.formatCurrency(mktCostAntes)} (mantido)\n`;
+                melhorias += `  Lucro: ${this.formatCurrency(lucroAntes)} → ${this.formatCurrency(period.data.profit)}\n`;
+                melhorias += `  Clientes: ${clientesAntes} → ${period.data.customerBase} (+${((fatores.clientes - 1) * 100).toFixed(0)}%)\n\n`;
             }
         });
 

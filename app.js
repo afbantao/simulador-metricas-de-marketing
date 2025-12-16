@@ -3578,13 +3578,23 @@ class SimulatorApp {
                 // Custos fixos, marketing e qualidade mantêm-se
                 // (mesma estrutura, mesmas campanhas, mesma qualidade)
 
-                // 3. RECALCULAR LUCRO = Receita - Todos os Custos
+                // 3. RECALCULAR LUCRO = Receita - Todos os Custos - Investimentos
                 const totalCustos = (period.data.variableCosts || 0) +
                                    (period.data.fixedCosts || 0) +
                                    (period.data.salesCommissions || 0) +
                                    (period.data.distributionCosts || 0);
+
+                // Investimentos globais (1/3 para cada produto)
+                const globalDec = period.globalDecisions || {};
+                const globalInvestmentsShare = ((globalDec.retentionInvestment || 0) +
+                                               (globalDec.brandInvestment || 0) +
+                                               (globalDec.customerService || 0) +
+                                               (globalDec.processImprovement || 0)) / 3;
+
                 const totalInvestimentos = (period.data.marketingCost || 0) +
-                                          (period.data.qualityCost || 0);
+                                          (period.data.qualityCost || 0) +
+                                          globalInvestmentsShare;
+
                 period.data.profit = Math.round((period.data.revenue - totalCustos - totalInvestimentos) * 100) / 100;
 
                 // 4. AUMENTAR BASE DE CLIENTES (mais vendas = mais clientes)

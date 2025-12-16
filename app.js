@@ -2378,8 +2378,8 @@ class SimulatorApp {
                         periodProfit += product.periods[p].data.profit;
                     }
                 });
-                profitEvolution[team.name].push(periodProfit);
                 teamAccumulatedProfit += periodProfit;
+                profitEvolution[team.name].push(teamAccumulatedProfit);
             }
 
             // Guardar dados da equipa

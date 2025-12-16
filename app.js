@@ -3499,7 +3499,7 @@ class SimulatorApp {
     }
 
     recalculateTeam2() {
-        if (!confirm('Isto irá recalcular TODOS os períodos simulados da Equipa 2 usando as decisões originais dela.\n\nQualquer alteração manual será removida.\n\nContinuar?')) {
+        if (!confirm('Isto irá recalcular o ÚLTIMO período simulado da Equipa 2 usando as decisões originais dela.\n\nQualquer alteração manual será removida.\n\nContinuar?')) {
             return;
         }
 
@@ -3513,57 +3513,62 @@ class SimulatorApp {
             return;
         }
 
-        // Encontrar todos os períodos simulados (não pendentes)
-        const simulatedPeriods = [];
+        // Encontrar o ÚLTIMO período simulado (não pendente)
+        let ultimoTrimestreIndex = -1;
         team.products[0].periods.forEach((period, index) => {
             if (period.data !== null && period.status !== 'pending') {
-                simulatedPeriods.push({ periodNum: period.period, index });
+                ultimoTrimestreIndex = index;
             }
         });
 
-        if (simulatedPeriods.length === 0) {
+        if (ultimoTrimestreIndex === -1) {
             alert('Nenhum período simulado encontrado para a Equipa 2!');
             return;
         }
 
-        // Recalcular cada período
-        simulatedPeriods.forEach(({ periodNum, index }) => {
-            // Recolher todas as decisões para calcular efeitos competitivos
-            const allDecisions = this.collectAllDecisions(teamCodes, teamsData, periodNum);
+        if (ultimoTrimestreIndex === 0) {
+            alert('Não é possível recalcular o primeiro período (não tem período anterior).');
+            return;
+        }
 
-            // Calcular métricas de mercado
-            const marketMetrics = this.calculateMarketMetrics(allDecisions);
+        const periodNum = team.products[0].periods[ultimoTrimestreIndex].period;
+        const quarterLabel = this.getQuarterLabel(periodNum);
 
-            // Recalcular cada produto
-            team.products.forEach(product => {
-                const periodData = product.periods[index];
-                const previousPeriod = index > 0 ? product.periods[index - 1] : null;
+        // Recolher todas as decisões para calcular efeitos competitivos
+        const allDecisions = this.collectAllDecisions(teamCodes, teamsData, periodNum);
 
-                if (!periodData || !periodData.decisions) return;
+        // Calcular métricas de mercado
+        const marketMetrics = this.calculateMarketMetrics(allDecisions);
 
-                const productType = product.type || (product.id === 'produtoA' ? 'premium' : product.id === 'produtoB' ? 'midrange' : 'economic');
+        // Recalcular cada produto
+        team.products.forEach(product => {
+            const periodData = product.periods[ultimoTrimestreIndex];
+            const previousPeriod = product.periods[ultimoTrimestreIndex - 1];
 
-                // Recalcular usando a função original da simulação
-                const newPeriodData = this.calculateCompetitivePeriodData(
-                    previousPeriod,
-                    periodData.decisions,
-                    periodData.globalDecisions,
-                    team.globalData,
-                    periodNum,
-                    productType,
-                    marketMetrics,
-                    allDecisions
-                );
+            if (!periodData || !periodData.decisions) return;
 
-                // Substituir os dados calculados
-                periodData.data = newPeriodData;
-            });
+            const productType = product.type || (product.id === 'produtoA' ? 'premium' : product.id === 'produtoB' ? 'midrange' : 'economic');
+
+            // Recalcular usando a função original da simulação
+            const newPeriodData = this.calculateCompetitivePeriodData(
+                previousPeriod,
+                periodData.decisions,
+                periodData.globalDecisions,
+                team.globalData,
+                periodNum,
+                productType,
+                marketMetrics,
+                allDecisions
+            );
+
+            // Substituir os dados calculados
+            periodData.data = newPeriodData;
         });
 
         // Guardar dados atualizados
         this.saveTeamData(teamCode, team);
 
-        alert(`✅ Equipa 2 recalculada com sucesso!\n\n${simulatedPeriods.length} período(s) recalculado(s) usando as decisões originais.`);
+        alert(`✅ Equipa 2 recalculada com sucesso!\n\n${quarterLabel} recalculado usando as decisões originais.`);
         this.loadAdminPanel();
     }
 

@@ -3550,14 +3550,31 @@ class SimulatorApp {
                 const clientesAntes = period.data.customerBase;
                 const novosAntes = period.data.newCustomers;
                 const perdidosAntes = period.data.lostCustomers;
+                const prodCostAntes = period.data.productionCost || 0;
+                const mktCostAntes = period.data.marketingCost || 0;
 
-                // Melhorar métricas de forma subtil
+                // 1. AUMENTAR RECEITA (sazonalidade favorável)
                 period.data.revenue = Math.round(period.data.revenue * fatores.receita * 100) / 100;
-                period.data.profit = Math.round(period.data.profit * fatores.lucro * 100) / 100;
+
+                // 2. REDUZIR CUSTOS (eficiência operacional melhorada)
+                // Custos diminuem para gerar lucro melhor
+                if (period.data.productionCost && !isNaN(period.data.productionCost)) {
+                    period.data.productionCost = Math.round(period.data.productionCost * 0.85 * 100) / 100; // -15%
+                }
+                if (period.data.marketingCost && !isNaN(period.data.marketingCost)) {
+                    period.data.marketingCost = Math.round(period.data.marketingCost * 0.80 * 100) / 100; // -20%
+                }
+
+                // 3. RECALCULAR LUCRO = Receita - Custos
+                const novosProdCost = period.data.productionCost || 0;
+                const novosMktCost = period.data.marketingCost || 0;
+                period.data.profit = Math.round((period.data.revenue - novosProdCost - novosMktCost) * 100) / 100;
+
+                // 4. MELHORAR BASE DE CLIENTES
                 period.data.customerBase = Math.round(period.data.customerBase * fatores.clientes);
                 period.data.newCustomers = Math.round(period.data.newCustomers * fatores.novos);
 
-                // Reduzir churn (menos clientes perdidos)
+                // 5. REDUZIR CHURN (menos clientes perdidos)
                 period.data.lostCustomers = Math.round(period.data.lostCustomers * fatores.churn);
 
                 // Recalcular churn rate
@@ -3565,26 +3582,20 @@ class SimulatorApp {
                     period.data.churnRate = (period.data.lostCustomers / clientesAntes) * 100;
                 }
 
-                // Ajustar custos de forma proporcional mas subtil
-                // Custos aumentam menos que a receita (eficiência melhorada)
-                if (period.data.productionCost && !isNaN(period.data.productionCost)) {
-                    period.data.productionCost = Math.round(period.data.productionCost * (fatores.receita * 0.95) * 100) / 100;
-                }
-                if (period.data.marketingCost && !isNaN(period.data.marketingCost)) {
-                    period.data.marketingCost = Math.round(period.data.marketingCost * (fatores.receita * 0.90) * 100) / 100;
-                }
-
-                // Recalcular market share (assumindo mercado total constante)
+                // Recalcular market share
                 const totalMarket = CONFIG.MARKET_POTENTIAL / CONFIG.NUM_PRODUCTS;
                 if (totalMarket > 0) {
                     period.data.marketShare = (period.data.customerBase / totalMarket) * 100;
                 }
 
+                const variacaoLucro = lucroAntes !== 0 ? ((period.data.profit - lucroAntes) / Math.abs(lucroAntes) * 100) : 100;
+
                 melhorias += `${product.name}:\n`;
-                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)} (+${((fatores.receita - 1) * 100).toFixed(0)}%)\n`;
-                melhorias += `  Lucro: ${this.formatCurrency(lucroAntes)} → ${this.formatCurrency(period.data.profit)} (+${((fatores.lucro - 1) * 100).toFixed(0)}%)\n`;
-                melhorias += `  Clientes: ${clientesAntes} → ${period.data.customerBase} (+${((fatores.clientes - 1) * 100).toFixed(0)}%)\n`;
-                melhorias += `  Churn: ${perdidosAntes} → ${period.data.lostCustomers} (${((fatores.churn - 1) * 100).toFixed(0)}%)\n\n`;
+                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)}\n`;
+                melhorias += `  Custos Produção: ${this.formatCurrency(prodCostAntes)} → ${this.formatCurrency(novosProdCost)}\n`;
+                melhorias += `  Custos Marketing: ${this.formatCurrency(mktCostAntes)} → ${this.formatCurrency(novosMktCost)}\n`;
+                melhorias += `  Lucro: ${this.formatCurrency(lucroAntes)} → ${this.formatCurrency(period.data.profit)} (${variacaoLucro > 0 ? '+' : ''}${variacaoLucro.toFixed(0)}%)\n`;
+                melhorias += `  Clientes: ${clientesAntes} → ${period.data.customerBase}\n\n`;
             }
         });
 

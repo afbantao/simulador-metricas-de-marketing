@@ -3499,7 +3499,7 @@ class SimulatorApp {
     }
 
     boostTeam2Performance() {
-        if (!confirm('Isto irá melhorar o desempenho da Equipa 2 (J7PLVW2U7D) no último trimestre simulado.\n\nSerão aumentadas as receitas, lucros e base de clientes de forma proporcional.\n\nContinuar?')) {
+        if (!confirm('Isto irá aplicar um ajuste subtil de "condições favoráveis de mercado" à Equipa 2 no último trimestre.\n\nO ajuste será moderado e natural, como se fosse variação sazonal.\n\nContinuar?')) {
             return;
         }
 
@@ -3527,47 +3527,63 @@ class SimulatorApp {
 
         const quarterLabel = this.getQuarterLabel(ultimoTrimestreIndex + 1);
 
-        // Fatores de melhoria
-        const fatorReceita = 2.5;
-        const fatorLucro = 2.5;
-        const fatorClientes = 1.5;
-        const fatorNovosClientes = 2.0;
+        // Fatores de melhoria SUBTIS - como se fosse sazonalidade favorável
+        // Variam por tipo de produto para parecer mais natural
+        const melhoriasPorProduto = [
+            { receita: 1.18, lucro: 1.22, clientes: 1.12, novos: 1.15, churn: 0.92 }, // Premium
+            { receita: 1.25, lucro: 1.28, clientes: 1.18, novos: 1.20, churn: 0.88 }, // Mid-range
+            { receita: 1.15, lucro: 1.18, clientes: 1.10, novos: 1.12, churn: 0.95 }  // Economic
+        ];
 
-        let melhorias = `Melhorias aplicadas ao ${quarterLabel}:\n\n`;
+        let melhorias = `Ajuste de mercado aplicado ao ${quarterLabel}:\n\n`;
 
         // Aplicar melhorias a cada produto
         team.products.forEach((product, idx) => {
             const period = product.periods[ultimoTrimestreIndex];
             if (period && period.data) {
+                const fatores = melhoriasPorProduto[idx];
+
                 const revenueAntes = period.data.revenue;
                 const lucroAntes = period.data.profit;
                 const clientesAntes = period.data.customerBase;
                 const novosAntes = period.data.newCustomers;
+                const perdidosAntes = period.data.lostCustomers;
 
-                // Melhorar métricas
-                period.data.revenue = Math.round(period.data.revenue * fatorReceita * 100) / 100;
-                period.data.profit = Math.round(period.data.profit * fatorLucro * 100) / 100;
-                period.data.customerBase = Math.round(period.data.customerBase * fatorClientes);
-                period.data.newCustomers = Math.round(period.data.newCustomers * fatorNovosClientes);
+                // Melhorar métricas de forma subtil
+                period.data.revenue = Math.round(period.data.revenue * fatores.receita * 100) / 100;
+                period.data.profit = Math.round(period.data.profit * fatores.lucro * 100) / 100;
+                period.data.customerBase = Math.round(period.data.customerBase * fatores.clientes);
+                period.data.newCustomers = Math.round(period.data.newCustomers * fatores.novos);
 
-                // Ajustar custos para manter coerência
-                const custoTotal = period.data.revenue - period.data.profit;
-                const ratioCusto = custoTotal / (revenueAntes - lucroAntes);
-                period.data.productionCost = Math.round(period.data.productionCost * ratioCusto * 100) / 100;
-                period.data.marketingCost = Math.round(period.data.marketingCost * ratioCusto * 100) / 100;
+                // Reduzir churn (menos clientes perdidos)
+                period.data.lostCustomers = Math.round(period.data.lostCustomers * fatores.churn);
+
+                // Recalcular churn rate
+                if (clientesAntes > 0) {
+                    period.data.churnRate = (period.data.lostCustomers / clientesAntes) * 100;
+                }
+
+                // Ajustar custos de forma proporcional mas subtil
+                // Custos aumentam menos que a receita (eficiência melhorada)
+                period.data.productionCost = Math.round(period.data.productionCost * (fatores.receita * 0.95) * 100) / 100;
+                period.data.marketingCost = Math.round(period.data.marketingCost * (fatores.receita * 0.90) * 100) / 100;
+
+                // Recalcular market share (assumindo mercado total constante)
+                const totalMarket = CONFIG.MARKET_POTENTIAL / CONFIG.NUM_PRODUCTS;
+                period.data.marketShare = (period.data.customerBase / totalMarket) * 100;
 
                 melhorias += `${product.name}:\n`;
-                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)}\n`;
-                melhorias += `  Lucro: ${this.formatCurrency(lucroAntes)} → ${this.formatCurrency(period.data.profit)}\n`;
-                melhorias += `  Clientes: ${clientesAntes} → ${period.data.customerBase}\n`;
-                melhorias += `  Novos: ${novosAntes} → ${period.data.newCustomers}\n\n`;
+                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)} (+${((fatores.receita - 1) * 100).toFixed(0)}%)\n`;
+                melhorias += `  Lucro: ${this.formatCurrency(lucroAntes)} → ${this.formatCurrency(period.data.profit)} (+${((fatores.lucro - 1) * 100).toFixed(0)}%)\n`;
+                melhorias += `  Clientes: ${clientesAntes} → ${period.data.customerBase} (+${((fatores.clientes - 1) * 100).toFixed(0)}%)\n`;
+                melhorias += `  Churn: ${perdidosAntes} → ${period.data.lostCustomers} (${((fatores.churn - 1) * 100).toFixed(0)}%)\n\n`;
             }
         });
 
         // Guardar dados modificados
         this.saveAllTeamsData(teamsData);
 
-        alert(melhorias + '✅ Desempenho da Equipa 2 melhorado com sucesso!');
+        alert(melhorias + '✅ Ajuste aplicado com sucesso! Parecem condições naturais de mercado favoráveis.');
         this.loadAdminPanel();
     }
 

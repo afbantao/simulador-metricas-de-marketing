@@ -3567,12 +3567,18 @@ class SimulatorApp {
 
                 // Ajustar custos de forma proporcional mas subtil
                 // Custos aumentam menos que a receita (eficiência melhorada)
-                period.data.productionCost = Math.round(period.data.productionCost * (fatores.receita * 0.95) * 100) / 100;
-                period.data.marketingCost = Math.round(period.data.marketingCost * (fatores.receita * 0.90) * 100) / 100;
+                if (period.data.productionCost && !isNaN(period.data.productionCost)) {
+                    period.data.productionCost = Math.round(period.data.productionCost * (fatores.receita * 0.95) * 100) / 100;
+                }
+                if (period.data.marketingCost && !isNaN(period.data.marketingCost)) {
+                    period.data.marketingCost = Math.round(period.data.marketingCost * (fatores.receita * 0.90) * 100) / 100;
+                }
 
                 // Recalcular market share (assumindo mercado total constante)
                 const totalMarket = CONFIG.MARKET_POTENTIAL / CONFIG.NUM_PRODUCTS;
-                period.data.marketShare = (period.data.customerBase / totalMarket) * 100;
+                if (totalMarket > 0) {
+                    period.data.marketShare = (period.data.customerBase / totalMarket) * 100;
+                }
 
                 melhorias += `${product.name}:\n`;
                 melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)} (+${((fatores.receita - 1) * 100).toFixed(0)}%)\n`;

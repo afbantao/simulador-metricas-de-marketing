@@ -3557,20 +3557,35 @@ class SimulatorApp {
                 // Receita aumenta com mais vendas
                 period.data.revenue = Math.round(period.data.revenue * fatores.receita * 100) / 100;
 
-                // 2. AJUSTAR CUSTOS VARIÁVEIS (aumentam com produção)
-                // Custos de produção aumentam ~90% do aumento de vendas (economia de escala leve)
-                if (period.data.productionCost && !isNaN(period.data.productionCost)) {
-                    const aumentoProdução = fatores.receita;
-                    period.data.productionCost = Math.round(period.data.productionCost * (1 + (aumentoProdução - 1) * 0.90) * 100) / 100;
+                // 2. AJUSTAR CUSTOS QUE VARIAM COM VOLUME DE VENDAS
+                // Custos variáveis aumentam ~90% do aumento (economia de escala leve)
+                const fatorCustosVariaveis = 1 + (fatores.receita - 1) * 0.90;
+
+                if (period.data.variableCosts && !isNaN(period.data.variableCosts)) {
+                    period.data.variableCosts = Math.round(period.data.variableCosts * fatorCustosVariaveis * 100) / 100;
                 }
 
-                // Custos de marketing mantêm-se (mesma campanha, mais eficaz)
-                // Não alteramos marketingCost
+                // Comissões de vendas aumentam com a receita
+                if (period.data.salesCommissions && !isNaN(period.data.salesCommissions)) {
+                    period.data.salesCommissions = Math.round(period.data.salesCommissions * fatores.receita * 100) / 100;
+                }
 
-                // 3. RECALCULAR LUCRO = Receita - Custos
-                const novosProdCost = period.data.productionCost || 0;
-                const novosMktCost = period.data.marketingCost || 0;
-                period.data.profit = Math.round((period.data.revenue - novosProdCost - novosMktCost) * 100) / 100;
+                // Custos de distribuição aumentam com volume
+                if (period.data.distributionCosts && !isNaN(period.data.distributionCosts)) {
+                    period.data.distributionCosts = Math.round(period.data.distributionCosts * fatorCustosVariaveis * 100) / 100;
+                }
+
+                // Custos fixos, marketing e qualidade mantêm-se
+                // (mesma estrutura, mesmas campanhas, mesma qualidade)
+
+                // 3. RECALCULAR LUCRO = Receita - Todos os Custos
+                const totalCustos = (period.data.variableCosts || 0) +
+                                   (period.data.fixedCosts || 0) +
+                                   (period.data.salesCommissions || 0) +
+                                   (period.data.distributionCosts || 0);
+                const totalInvestimentos = (period.data.marketingCost || 0) +
+                                          (period.data.qualityCost || 0);
+                period.data.profit = Math.round((period.data.revenue - totalCustos - totalInvestimentos) * 100) / 100;
 
                 // 4. AUMENTAR BASE DE CLIENTES (mais vendas = mais clientes)
                 period.data.customerBase = Math.round(period.data.customerBase * fatores.clientes);
@@ -3590,12 +3605,10 @@ class SimulatorApp {
                     period.data.marketShare = (period.data.customerBase / totalMarket) * 100;
                 }
 
-                const variacaoLucro = lucroAntes !== 0 ? ((period.data.profit - lucroAntes) / Math.abs(lucroAntes) * 100) : 100;
-
                 melhorias += `${product.name}:\n`;
-                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)} (+${((fatores.receita - 1) * 100).toFixed(0)}% vendas)\n`;
-                melhorias += `  Custos Produção: ${this.formatCurrency(prodCostAntes)} → ${this.formatCurrency(novosProdCost)}\n`;
-                melhorias += `  Custos Marketing: ${this.formatCurrency(mktCostAntes)} (mantido)\n`;
+                melhorias += `  Receita: ${this.formatCurrency(revenueAntes)} → ${this.formatCurrency(period.data.revenue)} (+${((fatores.receita - 1) * 100).toFixed(0)}%)\n`;
+                melhorias += `  Custos Variáveis: ${this.formatCurrency((period.data.variableCosts || 0) / fatorCustosVariaveis)} → ${this.formatCurrency(period.data.variableCosts || 0)}\n`;
+                melhorias += `  Custos Fixos: ${this.formatCurrency(period.data.fixedCosts || 0)} (mantidos)\n`;
                 melhorias += `  Lucro: ${this.formatCurrency(lucroAntes)} → ${this.formatCurrency(period.data.profit)}\n`;
                 melhorias += `  Clientes: ${clientesAntes} → ${period.data.customerBase} (+${((fatores.clientes - 1) * 100).toFixed(0)}%)\n\n`;
             }

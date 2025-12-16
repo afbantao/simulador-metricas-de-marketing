@@ -3527,12 +3527,14 @@ class SimulatorApp {
 
         const quarterLabel = this.getQuarterLabel(ultimoTrimestreIndex + 1);
 
-        // Fatores de melhoria SUBTIS - como se fosse sazonalidade favorável
-        // Variam por tipo de produto para parecer mais natural
+        // Fatores baseados na sazonalidade do Q4 (Natal) - CONFIG.SEASONALITY[4]
+        // Premium: demand 1.15, price 1.05, churn 0.85
+        // Midrange: demand 1.25, price 1.00, churn 0.90
+        // Economic: demand 1.30, price 0.98, churn 0.95
         const melhoriasPorProduto = [
-            { receita: 1.18, lucro: 1.22, clientes: 1.12, novos: 1.15, churn: 0.92 }, // Premium
-            { receita: 1.25, lucro: 1.28, clientes: 1.18, novos: 1.20, churn: 0.88 }, // Mid-range
-            { receita: 1.15, lucro: 1.18, clientes: 1.10, novos: 1.12, churn: 0.95 }  // Economic
+            { receita: 1.15 * 1.05, lucro: 1.20, clientes: 1.15, novos: 1.15, churn: 0.85 }, // Premium
+            { receita: 1.25 * 1.00, lucro: 1.28, clientes: 1.25, novos: 1.25, churn: 0.90 }, // Mid-range
+            { receita: 1.30 * 0.98, lucro: 1.35, clientes: 1.30, novos: 1.30, churn: 0.95 }  // Economic
         ];
 
         let melhorias = `Ajuste de mercado aplicado ao ${quarterLabel}:\n\n`;

@@ -3916,7 +3916,7 @@ class SimulatorApp {
         XLSX.writeFile(wb, `Desempenho_Equipas_${timestamp}.xlsx`);
     }
 
-    async exportSimulationReport() {
+    exportSimulationReport() {
         const simData = this.getSimulationData();
         const teamsData = this.getAllTeamsData();
         const teamCodes = this.getTeamCodes();
@@ -3935,54 +3935,29 @@ class SimulatorApp {
             // Coletar estatísticas
             const stats = this.collectSimulationStats(simData, teamsData, teamCodes);
 
-            // Criar HTML do relatório
-            const reportHTML = this.generateReportHTML(stats);
+            // Criar HTML completo do relatório
+            const fullHTML = this.generateFullReportHTML(stats);
 
-            // Criar elemento temporário
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = reportHTML;
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.style.width = '210mm'; // A4 width
-            document.body.appendChild(tempDiv);
-
-            // Gerar PDF usando html2canvas e jsPDF
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-
-            const sections = tempDiv.querySelectorAll('.pdf-page');
-
-            for (let i = 0; i < sections.length; i++) {
-                if (i > 0) pdf.addPage();
-
-                const canvas = await html2canvas(sections[i], {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                    backgroundColor: '#ffffff'
-                });
-
-                const imgData = canvas.toDataURL('image/png');
-                const imgWidth = 210;
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-            }
-
-            // Remover elemento temporário
-            document.body.removeChild(tempDiv);
-
-            // Download do PDF
+            // Download do HTML
             const timestamp = new Date().toISOString().slice(0, 10);
-            pdf.save(`Relatório_Final_Simulação_${timestamp}.pdf`);
+            const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Relatório_Final_Simulação_${timestamp}.html`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
 
-            alert('✅ Relatório exportado com sucesso!');
+            alert('✅ Relatório exportado com sucesso!\n\nAbra o ficheiro HTML no browser e use Ctrl+P para imprimir em PDF de alta qualidade.');
         } catch (error) {
             console.error('Erro ao gerar relatório:', error);
             alert('❌ Erro ao gerar relatório. Por favor tente novamente.');
         } finally {
             originalButton.disabled = false;
-            originalButton.textContent = '📄 Exportar Relatório Final (PDF)';
+            originalButton.textContent = '📄 Exportar Relatório Final (HTML)';
         }
     }
 
@@ -4070,6 +4045,114 @@ class SimulatorApp {
         stats.teams.sort((a, b) => b.accumulatedProfit - a.accumulatedProfit);
 
         return stats;
+    }
+
+    generateFullReportHTML(stats) {
+        const reportContent = this.generateReportHTML(stats);
+
+        return `<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório Final - Simulação de Métricas de Marketing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #1a1a1a;
+            background: #f5f5f5;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+        }
+
+        .pdf-page {
+            page-break-after: always;
+            page-break-inside: avoid;
+            min-height: 100vh;
+        }
+
+        .pdf-page:last-child {
+            page-break-after: auto;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .pdf-page {
+                page-break-after: always;
+                page-break-inside: avoid;
+            }
+
+            .pdf-page:last-child {
+                page-break-after: auto;
+            }
+
+            @page {
+                size: A4;
+                margin: 0;
+            }
+        }
+
+        @media screen {
+            .container {
+                box-shadow: 0 0 40px rgba(0,0,0,0.1);
+                margin: 40px auto;
+            }
+
+            .print-button {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 15px 30px;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                transition: all 0.3s ease;
+                z-index: 1000;
+            }
+
+            .print-button:hover {
+                background: #5568d3;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+            }
+        }
+
+        @media print {
+            .print-button {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+    <div class="container">
+        ${reportContent}
+    </div>
+</body>
+</html>`;
     }
 
     generateReportHTML(stats) {

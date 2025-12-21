@@ -4043,8 +4043,8 @@ class SimulatorApp {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gifshot@0.4.5/dist/gifshot.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -4511,15 +4511,8 @@ class SimulatorApp {
             progress.classList.add('show');
 
             try {
-                const gif = new GIF({
-                    workers: 2,
-                    quality: 10,
-                    width: 1400,
-                    height: 900,
-                    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
-                });
-
-                const totalFrames = 30; // 3 segundos a 10 FPS
+                const frames = [];
+                const totalFrames = 25; // 2.5 segundos
                 const delay = 100; // 100ms por frame = 10 FPS
 
                 // Capturar frames
@@ -4528,47 +4521,60 @@ class SimulatorApp {
                     progressText.textContent = \`Frame \${i + 1}/\${totalFrames}\`;
 
                     const canvas = await html2canvas(document.body, {
-                        scale: 1.5,
+                        scale: 1.2,
                         backgroundColor: null,
                         logging: false,
-                        width: 1400,
-                        height: 900
+                        windowWidth: 1400,
+                        windowHeight: 900
                     });
 
-                    gif.addFrame(canvas, { delay: delay });
+                    // Converter canvas para imagem base64
+                    frames.push(canvas.toDataURL('image/png'));
 
                     // Esperar um pouco para capturar animação
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
 
                 progressText.textContent = 'A processar GIF...';
+                progressFill.style.width = '100%';
 
-                gif.on('finished', function(blob) {
-                    // Download
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'Podio_Vencedores_${new Date().toISOString().slice(0, 10)}.gif';
-                    link.click();
-                    URL.revokeObjectURL(url);
+                // Criar GIF usando gifshot
+                gifshot.createGIF({
+                    images: frames,
+                    gifWidth: 1400,
+                    gifHeight: 900,
+                    interval: 0.1, // 10 FPS
+                    numFrames: totalFrames,
+                    frameDuration: 10,
+                    sampleInterval: 10,
+                    numWorkers: 2
+                }, function(obj) {
+                    if (!obj.error) {
+                        // Download
+                        const link = document.createElement('a');
+                        link.href = obj.image;
+                        link.download = 'Podio_Vencedores_${new Date().toISOString().slice(0, 10)}.gif';
+                        link.click();
 
-                    // Reset
-                    btn.disabled = false;
-                    btn.textContent = '🎬 Exportar como GIF';
-                    progress.classList.remove('show');
-                    progressFill.style.width = '0%';
+                        // Reset
+                        btn.disabled = false;
+                        btn.textContent = '🎬 Exportar como GIF';
+                        progress.classList.remove('show');
+                        progressFill.style.width = '0%';
 
-                    alert('✅ GIF gerado com sucesso!\\n\\nO ficheiro foi descarregado. Pode anexá-lo diretamente ao email!');
+                        alert('✅ GIF gerado com sucesso!\\n\\nO ficheiro foi descarregado. Pode anexá-lo diretamente ao email!');
+                    } else {
+                        throw new Error(obj.error);
+                    }
                 });
-
-                gif.render();
 
             } catch (error) {
                 console.error('Erro ao gerar GIF:', error);
-                alert('❌ Erro ao gerar GIF. Por favor tente novamente.');
+                alert('❌ Erro ao gerar GIF: ' + error.message + '\\n\\nPor favor tente novamente.');
                 btn.disabled = false;
                 btn.textContent = '🎬 Exportar como GIF';
                 progress.classList.remove('show');
+                progressFill.style.width = '0%';
             }
         }
     </script>

@@ -3961,6 +3961,464 @@ class SimulatorApp {
         }
     }
 
+    exportPodium() {
+        const simData = this.getSimulationData();
+        const teamsData = this.getAllTeamsData();
+        const teamCodes = this.getTeamCodes();
+
+        if (!simData || !teamsData) {
+            alert('Não há dados para exportar!');
+            return;
+        }
+
+        // Coletar top 3
+        const topTeams = [];
+        teamCodes.forEach(code => {
+            const team = teamsData[code];
+            if (!team) return;
+
+            let accumulatedProfit = 0;
+            let totalRevenue = 0;
+            let totalCustomers = 0;
+
+            team.products.forEach(product => {
+                product.periods.forEach((period, index) => {
+                    if (index >= CONFIG.HISTORICAL_PERIODS) {
+                        accumulatedProfit += period.data.profit;
+                    }
+                    totalRevenue += period.data.revenue;
+                });
+                const lastPeriod = product.periods[product.periods.length - 1];
+                totalCustomers += lastPeriod.data.customerBase;
+            });
+
+            topTeams.push({
+                name: team.name,
+                code: code,
+                profit: accumulatedProfit,
+                revenue: totalRevenue,
+                customers: totalCustomers
+            });
+        });
+
+        // Ordenar por lucro acumulado
+        topTeams.sort((a, b) => b.profit - a.profit);
+
+        // Pegar apenas top 3
+        const top3 = topTeams.slice(0, 3);
+
+        if (top3.length < 3) {
+            alert('São necessárias pelo menos 3 equipas para gerar o pódio!');
+            return;
+        }
+
+        // Gerar HTML do pódio
+        const podiumHTML = this.generatePodiumHTML(top3);
+
+        // Download
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const blob = new Blob([podiumHTML], { type: 'text/html;charset=utf-8' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `Podio_Vencedores_${timestamp}.html`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        alert('✅ Pódio exportado com sucesso!\n\nAbra o ficheiro HTML no browser e tire screenshot (Print Screen ou Snipping Tool).');
+    }
+
+    generatePodiumHTML(top3) {
+        const [first, second, third] = top3;
+
+        return `<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Pódio dos Vencedores</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Confetti animation */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #f0f0f0;
+            position: absolute;
+            animation: confetti-fall 3s linear infinite;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            text-align: center;
+            padding: 60px 40px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        .header {
+            margin-bottom: 80px;
+            animation: fadeInDown 1s ease;
+        }
+
+        .header h1 {
+            font-size: 72px;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            letter-spacing: -2px;
+        }
+
+        .header p {
+            font-size: 28px;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 500;
+        }
+
+        .podium-container {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 40px;
+            perspective: 1000px;
+        }
+
+        .podium-place {
+            position: relative;
+            animation: slideUp 1s ease;
+        }
+
+        .podium-place.first {
+            animation-delay: 0.2s;
+            order: 2;
+        }
+
+        .podium-place.second {
+            animation-delay: 0.4s;
+            order: 1;
+        }
+
+        .podium-place.third {
+            animation-delay: 0.6s;
+            order: 3;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .winner-card {
+            background: white;
+            border-radius: 24px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .winner-card:hover {
+            transform: translateY(-10px) scale(1.02);
+        }
+
+        .podium-place.first .winner-card {
+            width: 380px;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+        }
+
+        .podium-place.second .winner-card {
+            width: 340px;
+            background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+        }
+
+        .podium-place.third .winner-card {
+            width: 340px;
+            background: linear-gradient(135deg, #cd7f32 0%, #e09551 100%);
+        }
+
+        .medal {
+            font-size: 120px;
+            margin-bottom: 20px;
+            display: inline-block;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .position {
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .podium-place.first .position {
+            color: #b8860b;
+        }
+
+        .podium-place.second .position {
+            color: #6b6b6b;
+        }
+
+        .podium-place.third .position {
+            color: #8b4513;
+        }
+
+        .team-name {
+            font-size: 32px;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin-bottom: 30px;
+            line-height: 1.2;
+        }
+
+        .stats {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-item {
+            margin: 15px 0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #1a1a1a;
+        }
+
+        .podium-base {
+            width: 100%;
+            margin-top: 40px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .podium-place.first .podium-base {
+            height: 200px;
+            background: rgba(255, 215, 0, 0.2);
+        }
+
+        .podium-place.second .podium-base {
+            height: 150px;
+            background: rgba(192, 192, 192, 0.2);
+        }
+
+        .podium-place.third .podium-base {
+            height: 120px;
+            background: rgba(205, 127, 50, 0.2);
+        }
+
+        .footer {
+            margin-top: 60px;
+            color: white;
+            font-size: 18px;
+            font-weight: 500;
+            opacity: 0.9;
+            animation: fadeInDown 1s ease 1s backwards;
+        }
+
+        /* Sparkles */
+        .sparkle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            animation: sparkle 1.5s infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Confetti -->
+    <script>
+        // Generate confetti
+        for (let i = 0; i < 50; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.animationDelay = Math.random() * 3 + 's';
+            confetti.style.background = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A'][Math.floor(Math.random() * 5)];
+            document.body.appendChild(confetti);
+        }
+    </script>
+
+    <div class="container">
+        <div class="header">
+            <h1>🏆 PÓDIO DOS VENCEDORES 🏆</h1>
+            <p>Simulação de Métricas de Marketing · ESTGD</p>
+        </div>
+
+        <div class="podium-container">
+            <!-- 2º Lugar -->
+            <div class="podium-place second">
+                <div class="winner-card">
+                    <div class="medal">🥈</div>
+                    <div class="position">2º Lugar</div>
+                    <div class="team-name">${second.name}</div>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-label">Lucro Acumulado</div>
+                            <div class="stat-value">${this.formatCurrency(second.profit)}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Receita Total</div>
+                            <div class="stat-value">${this.formatCurrency(second.revenue)}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Clientes</div>
+                            <div class="stat-value">${this.formatNumber(second.customers)}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="podium-base"></div>
+            </div>
+
+            <!-- 1º Lugar -->
+            <div class="podium-place first">
+                <div class="winner-card">
+                    <div class="medal">🥇</div>
+                    <div class="position">1º Lugar</div>
+                    <div class="team-name">${first.name}</div>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-label">Lucro Acumulado</div>
+                            <div class="stat-value">${this.formatCurrency(first.profit)}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Receita Total</div>
+                            <div class="stat-value">${this.formatCurrency(first.revenue)}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Clientes</div>
+                            <div class="stat-value">${this.formatNumber(first.customers)}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="podium-base"></div>
+            </div>
+
+            <!-- 3º Lugar -->
+            <div class="podium-place third">
+                <div class="winner-card">
+                    <div class="medal">🥉</div>
+                    <div class="position">3º Lugar</div>
+                    <div class="team-name">${third.name}</div>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-label">Lucro Acumulado</div>
+                            <div class="stat-value">${this.formatCurrency(third.profit)}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Receita Total</div>
+                            <div class="stat-value">${this.formatCurrency(third.revenue)}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Clientes</div>
+                            <div class="stat-value">${this.formatNumber(third.customers)}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="podium-base"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🎓 Parabéns a todas as equipas pelo excelente trabalho! 🎓</p>
+            <p style="margin-top: 10px; font-size: 16px; opacity: 0.8;">Instituto Politécnico de Portalegre · ${new Date().getFullYear()}</p>
+        </div>
+    </div>
+</body>
+</html>`;
+    }
+
     collectSimulationStats(simData, teamsData, teamCodes) {
         const stats = {
             general: {

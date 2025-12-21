@@ -3916,6 +3916,346 @@ class SimulatorApp {
         XLSX.writeFile(wb, `Desempenho_Equipas_${timestamp}.xlsx`);
     }
 
+    async exportSimulationReport() {
+        const simData = this.getSimulationData();
+        const teamsData = this.getAllTeamsData();
+        const teamCodes = this.getTeamCodes();
+
+        if (!simData || !teamsData) {
+            alert('Não há dados para exportar!');
+            return;
+        }
+
+        // Mostrar mensagem de processamento
+        const originalButton = event.target;
+        originalButton.disabled = true;
+        originalButton.textContent = '📄 A gerar relatório...';
+
+        try {
+            // Coletar estatísticas
+            const stats = this.collectSimulationStats(simData, teamsData, teamCodes);
+
+            // Criar HTML do relatório
+            const reportHTML = this.generateReportHTML(stats);
+
+            // Criar elemento temporário
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = reportHTML;
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.width = '210mm'; // A4 width
+            document.body.appendChild(tempDiv);
+
+            // Gerar PDF usando html2canvas e jsPDF
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+
+            const sections = tempDiv.querySelectorAll('.pdf-page');
+
+            for (let i = 0; i < sections.length; i++) {
+                if (i > 0) pdf.addPage();
+
+                const canvas = await html2canvas(sections[i], {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff'
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 210;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            }
+
+            // Remover elemento temporário
+            document.body.removeChild(tempDiv);
+
+            // Download do PDF
+            const timestamp = new Date().toISOString().slice(0, 10);
+            pdf.save(`Relatório_Final_Simulação_${timestamp}.pdf`);
+
+            alert('✅ Relatório exportado com sucesso!');
+        } catch (error) {
+            console.error('Erro ao gerar relatório:', error);
+            alert('❌ Erro ao gerar relatório. Por favor tente novamente.');
+        } finally {
+            originalButton.disabled = false;
+            originalButton.textContent = '📄 Exportar Relatório Final (PDF)';
+        }
+    }
+
+    collectSimulationStats(simData, teamsData, teamCodes) {
+        const stats = {
+            general: {
+                period: this.getQuarterLabel(simData.currentPeriod - 1),
+                numTeams: teamCodes.length,
+                numPeriods: 0
+            },
+            teams: [],
+            priceEvolution: {},
+            marketTotals: { revenue: 0, profit: 0, customers: 0 }
+        };
+
+        // Coletar dados por equipa
+        teamCodes.forEach(code => {
+            const team = teamsData[code];
+            if (!team) return;
+
+            let totalRevenue = 0;
+            let totalProfit = 0;
+            let totalCustomers = 0;
+            let initialCustomers = 0;
+            let accumulatedProfit = 0;
+
+            const numPeriods = team.products[0].periods.length;
+            if (stats.general.numPeriods === 0) stats.general.numPeriods = numPeriods;
+
+            // Inicializar evolução de preços
+            stats.priceEvolution[team.name] = {
+                premium: [],
+                midrange: [],
+                economic: []
+            };
+
+            team.products.forEach((product, prodIdx) => {
+                const productType = prodIdx === 0 ? 'premium' : (prodIdx === 1 ? 'midrange' : 'economic');
+
+                product.periods.forEach((period, index) => {
+                    totalRevenue += period.data.revenue;
+                    totalProfit += period.data.profit;
+
+                    // Lucro acumulado apenas das decisões reais (período >= 6)
+                    if (index >= CONFIG.HISTORICAL_PERIODS) {
+                        accumulatedProfit += period.data.profit;
+                    }
+
+                    if (index === 0) initialCustomers += period.data.customerBase;
+
+                    // Coletar evolução de preços
+                    stats.priceEvolution[team.name][productType].push({
+                        period: this.getQuarterLabel(period.period),
+                        price: period.decisions.price
+                    });
+                });
+
+                const lastPeriod = product.periods[product.periods.length - 1];
+                totalCustomers += lastPeriod.data.customerBase;
+            });
+
+            const avgRevenue = totalRevenue / numPeriods;
+            const avgProfit = totalProfit / numPeriods;
+            const growthRate = ((totalCustomers - initialCustomers) / initialCustomers * 100);
+
+            stats.teams.push({
+                name: team.name,
+                code: code,
+                revenue: totalRevenue,
+                profit: totalProfit,
+                accumulatedProfit: accumulatedProfit,
+                customers: totalCustomers,
+                avgRevenue: avgRevenue,
+                avgProfit: avgProfit,
+                growthRate: growthRate,
+                numPeriods: numPeriods
+            });
+
+            stats.marketTotals.revenue += totalRevenue;
+            stats.marketTotals.profit += totalProfit;
+            stats.marketTotals.customers += totalCustomers;
+        });
+
+        // Ordenar equipas por lucro acumulado (decisões reais)
+        stats.teams.sort((a, b) => b.accumulatedProfit - a.accumulatedProfit);
+
+        return stats;
+    }
+
+    generateReportHTML(stats) {
+        const date = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
+
+        return `
+            <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a;">
+
+                <!-- PÁGINA 1: CAPA -->
+                <div class="pdf-page" style="width: 210mm; height: 297mm; padding: 40mm 20mm; box-sizing: border-box; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                    <div style="background: rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; backdrop-filter: blur(10px);">
+                        <h1 style="font-size: 48px; font-weight: 700; margin: 0 0 20px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">Relatório Final da Simulação</h1>
+                        <p style="font-size: 24px; margin: 0 0 40px 0; opacity: 0.95;">Métricas de Marketing</p>
+                        <div style="height: 2px; width: 200px; background: white; margin: 0 auto 40px auto; opacity: 0.5;"></div>
+                        <p style="font-size: 18px; margin: 0; opacity: 0.9;">ESTGD · Instituto Politécnico de Portalegre</p>
+                        <p style="font-size: 16px; margin: 20px 0 0 0; opacity: 0.8;">${date}</p>
+                        <p style="font-size: 14px; margin: 40px 0 0 0; opacity: 0.7;">Período Final: ${stats.general.period}</p>
+                    </div>
+                </div>
+
+                <!-- PÁGINA 2: RESUMO EXECUTIVO -->
+                <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm; box-sizing: border-box; background: white;">
+                    <h2 style="color: #667eea; font-size: 32px; margin: 0 0 30px 0; border-bottom: 3px solid #667eea; padding-bottom: 10px;">📊 Resumo Executivo</h2>
+
+                    <div style="background: #f8f9fa; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+                        <h3 style="color: #333; font-size: 20px; margin: 0 0 20px 0;">Visão Geral da Simulação</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                            <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea;">
+                                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Equipas Participantes</div>
+                                <div style="font-size: 32px; font-weight: 700; color: #667eea;">${stats.general.numTeams}</div>
+                            </div>
+                            <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #764ba2;">
+                                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Períodos Simulados</div>
+                                <div style="font-size: 32px; font-weight: 700; color: #764ba2;">${stats.general.numPeriods}</div>
+                            </div>
+                            <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #48bb78;">
+                                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Receita Total do Mercado</div>
+                                <div style="font-size: 28px; font-weight: 700; color: #48bb78;">${this.formatCurrency(stats.marketTotals.revenue)}</div>
+                            </div>
+                            <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #f6ad55;">
+                                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Clientes Totais do Mercado</div>
+                                <div style="font-size: 28px; font-weight: 700; color: #f6ad55;">${this.formatNumber(stats.marketTotals.customers)}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 style="color: #333; font-size: 24px; margin: 40px 0 20px 0;">🏆 Classificação Final (por Lucro Acumulado)</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background: #667eea; color: white;">
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">#</th>
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Equipa</th>
+                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">Lucro Acumulado</th>
+                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">Receita Total</th>
+                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">Clientes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${stats.teams.map((team, index) => `
+                                <tr style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; ${index === 0 ? 'background: #fff3cd; font-weight: 600;' : ''}">
+                                    <td style="padding: 12px; border: 1px solid #ddd;">${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}</td>
+                                    <td style="padding: 12px; border: 1px solid #ddd;">${team.name}</td>
+                                    <td style="padding: 12px; text-align: right; border: 1px solid #ddd; color: ${team.accumulatedProfit >= 0 ? '#48bb78' : '#f56565'}; font-weight: 600;">${this.formatCurrency(team.accumulatedProfit)}</td>
+                                    <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${this.formatCurrency(team.revenue)}</td>
+                                    <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${this.formatNumber(team.customers)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- PÁGINA 3: ANÁLISE DE DESEMPENHO -->
+                <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm; box-sizing: border-box; background: white;">
+                    <h2 style="color: #667eea; font-size: 32px; margin: 0 0 30px 0; border-bottom: 3px solid #667eea; padding-bottom: 10px;">📈 Análise de Desempenho</h2>
+
+                    <h3 style="color: #333; font-size: 24px; margin: 0 0 20px 0;">Métricas Comparativas por Equipa</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px;">
+                        <thead>
+                            <tr style="background: #667eea; color: white;">
+                                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Equipa</th>
+                                <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Receita Média/Período</th>
+                                <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Lucro Médio/Período</th>
+                                <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Taxa Crescimento</th>
+                                <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Quota Mercado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${stats.teams.map((team, index) => `
+                                <tr style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'};">
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${team.name}</td>
+                                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${this.formatCurrency(team.avgRevenue)}</td>
+                                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd; color: ${team.avgProfit >= 0 ? '#48bb78' : '#f56565'};">${this.formatCurrency(team.avgProfit)}</td>
+                                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${team.growthRate.toFixed(1)}%</td>
+                                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${((team.revenue / stats.marketTotals.revenue) * 100).toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+
+                    <h3 style="color: #333; font-size: 24px; margin: 40px 0 20px 0;">💰 Evolução de Preços - Produto Premium</h3>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                        ${this.generatePriceEvolutionTable(stats.priceEvolution, 'premium')}
+                    </div>
+
+                    <h3 style="color: #333; font-size: 24px; margin: 40px 0 20px 0;">💰 Evolução de Preços - Produto Mid-Range</h3>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                        ${this.generatePriceEvolutionTable(stats.priceEvolution, 'midrange')}
+                    </div>
+
+                    <h3 style="color: #333; font-size: 24px; margin: 40px 0 20px 0;">💰 Evolução de Preços - Produto Económico</h3>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                        ${this.generatePriceEvolutionTable(stats.priceEvolution, 'economic')}
+                    </div>
+                </div>
+
+                <!-- PÁGINA 4: CONCLUSÕES -->
+                <div class="pdf-page" style="width: 210mm; min-height: 297mm; padding: 20mm; box-sizing: border-box; background: white;">
+                    <h2 style="color: #667eea; font-size: 32px; margin: 0 0 30px 0; border-bottom: 3px solid #667eea; padding-bottom: 10px;">🎯 Análise Estratégica</h2>
+
+                    <div style="background: #e6fffa; border-left: 4px solid #38b2ac; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                        <h3 style="color: #2c7a7b; margin: 0 0 15px 0; font-size: 20px;">✨ Destaques da Simulação</h3>
+                        <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                            <li><strong>Equipa Vencedora:</strong> ${stats.teams[0].name} com lucro acumulado de ${this.formatCurrency(stats.teams[0].accumulatedProfit)}</li>
+                            <li><strong>Maior Receita:</strong> ${stats.teams.reduce((max, t) => t.revenue > max.revenue ? t : max, stats.teams[0]).name} (${this.formatCurrency(stats.teams.reduce((max, t) => t.revenue > max.revenue ? t : max, stats.teams[0]).revenue)})</li>
+                            <li><strong>Maior Base de Clientes:</strong> ${stats.teams.reduce((max, t) => t.customers > max.customers ? t : max, stats.teams[0]).name} (${this.formatNumber(stats.teams.reduce((max, t) => t.customers > max.customers ? t : max, stats.teams[0]).customers)} clientes)</li>
+                            <li><strong>Maior Taxa de Crescimento:</strong> ${stats.teams.reduce((max, t) => t.growthRate > max.growthRate ? t : max, stats.teams[0]).name} (${stats.teams.reduce((max, t) => t.growthRate > max.growthRate ? t : max, stats.teams[0]).growthRate.toFixed(1)}%)</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: #fff5f5; border-left: 4px solid #fc8181; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                        <h3 style="color: #c53030; margin: 0 0 15px 0; font-size: 20px;">📌 Observações Importantes</h3>
+                        <p style="margin: 0; line-height: 1.8;">
+                            A simulação demonstrou a importância da gestão equilibrada entre preço, qualidade e investimento em marketing.
+                            As equipas que conseguiram otimizar estes três pilares obtiveram melhores resultados consistentes ao longo dos períodos.
+                        </p>
+                    </div>
+
+                    <div style="background: #fffaf0; border-left: 4px solid #f6ad55; padding: 20px; border-radius: 8px;">
+                        <h3 style="color: #c05621; margin: 0 0 15px 0; font-size: 20px;">💡 Conclusões</h3>
+                        <p style="margin: 0 0 15px 0; line-height: 1.8;">
+                            Os resultados desta simulação destacam a complexidade da tomada de decisões em marketing e gestão empresarial.
+                            Factores como sazonalidade, competição e eficiência dos canais de distribuição tiveram impacto significativo nos resultados.
+                        </p>
+                        <p style="margin: 0; line-height: 1.8; font-style: italic; color: #666;">
+                            "O sucesso não é apenas fazer receita, mas criar valor sustentável através de decisões estratégicas informadas."
+                        </p>
+                    </div>
+
+                    <div style="margin-top: 60px; padding-top: 30px; border-top: 2px solid #e2e8f0; text-align: center; color: #718096;">
+                        <p style="margin: 0; font-size: 14px;">Relatório gerado automaticamente pelo Simulador de Métricas de Marketing</p>
+                        <p style="margin: 10px 0 0 0; font-size: 12px;">ESTGD · Instituto Politécnico de Portalegre · ${new Date().getFullYear()}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    generatePriceEvolutionTable(priceEvolution, productType) {
+        const teams = Object.keys(priceEvolution);
+        const numPeriods = priceEvolution[teams[0]][productType].length;
+
+        let html = '<table style="width: 100%; border-collapse: collapse; font-size: 11px;">';
+        html += '<thead><tr style="background: #4a5568; color: white;">';
+        html += '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Equipa</th>';
+
+        for (let i = 0; i < numPeriods; i++) {
+            const period = priceEvolution[teams[0]][productType][i].period;
+            html += `<th style="padding: 8px; border: 1px solid #ddd; text-align: right;">${period}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        teams.forEach((teamName, index) => {
+            html += `<tr style="background: ${index % 2 === 0 ? 'white' : '#f7fafc'};">`;
+            html += `<td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${teamName}</td>`;
+
+            priceEvolution[teamName][productType].forEach(data => {
+                html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${this.formatCurrency(data.price)}</td>`;
+            });
+
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        return html;
+    }
+
     downloadJSON(data, filename) {
         const content = JSON.stringify(data, null, 2);
         const blob = new Blob([content], { type: 'application/json' });

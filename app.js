@@ -4043,6 +4043,8 @@ class SimulatorApp {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -4314,6 +4316,73 @@ class SimulatorApp {
                 transform: scale(1);
             }
         }
+
+        .export-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .export-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+            background: #f0f0f0;
+        }
+
+        .export-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #progress {
+            position: fixed;
+            top: 90px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 999;
+            min-width: 250px;
+        }
+
+        #progress.show {
+            display: block;
+        }
+
+        .progress-text {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -4415,6 +4484,94 @@ class SimulatorApp {
             <p style="margin-top: 10px; font-size: 16px; opacity: 0.8;">Instituto Politécnico de Portalegre · ${new Date().getFullYear()}</p>
         </div>
     </div>
+
+    <!-- Botão de Exportar GIF -->
+    <button class="export-button" onclick="exportToGif()" id="exportBtn">
+        🎬 Exportar como GIF
+    </button>
+
+    <!-- Progress Indicator -->
+    <div id="progress">
+        <div class="progress-text">A gerar GIF animado...</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px; color: #666;" id="progressText">Frame 0/30</div>
+    </div>
+
+    <script>
+        async function exportToGif() {
+            const btn = document.getElementById('exportBtn');
+            const progress = document.getElementById('progress');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            btn.disabled = true;
+            btn.textContent = '⏳ A gerar...';
+            progress.classList.add('show');
+
+            try {
+                const gif = new GIF({
+                    workers: 2,
+                    quality: 10,
+                    width: 1400,
+                    height: 900,
+                    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+                });
+
+                const totalFrames = 30; // 3 segundos a 10 FPS
+                const delay = 100; // 100ms por frame = 10 FPS
+
+                // Capturar frames
+                for (let i = 0; i < totalFrames; i++) {
+                    progressFill.style.width = ((i / totalFrames) * 100) + '%';
+                    progressText.textContent = \`Frame \${i + 1}/\${totalFrames}\`;
+
+                    const canvas = await html2canvas(document.body, {
+                        scale: 1.5,
+                        backgroundColor: null,
+                        logging: false,
+                        width: 1400,
+                        height: 900
+                    });
+
+                    gif.addFrame(canvas, { delay: delay });
+
+                    // Esperar um pouco para capturar animação
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+
+                progressText.textContent = 'A processar GIF...';
+
+                gif.on('finished', function(blob) {
+                    // Download
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'Podio_Vencedores_${new Date().toISOString().slice(0, 10)}.gif';
+                    link.click();
+                    URL.revokeObjectURL(url);
+
+                    // Reset
+                    btn.disabled = false;
+                    btn.textContent = '🎬 Exportar como GIF';
+                    progress.classList.remove('show');
+                    progressFill.style.width = '0%';
+
+                    alert('✅ GIF gerado com sucesso!\\n\\nO ficheiro foi descarregado. Pode anexá-lo diretamente ao email!');
+                });
+
+                gif.render();
+
+            } catch (error) {
+                console.error('Erro ao gerar GIF:', error);
+                alert('❌ Erro ao gerar GIF. Por favor tente novamente.');
+                btn.disabled = false;
+                btn.textContent = '🎬 Exportar como GIF';
+                progress.classList.remove('show');
+            }
+        }
+    </script>
 </body>
 </html>`;
     }

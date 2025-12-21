@@ -4033,6 +4033,8 @@ class SimulatorApp {
 
     generatePodiumHTML(top3) {
         const [first, second, third] = top3;
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const year = new Date().getFullYear();
 
         return `<!DOCTYPE html>
 <html lang="pt">
@@ -4044,537 +4046,228 @@ class SimulatorApp {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gifshot@0.4.5/dist/gifshot.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            min-height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 60px;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-            position: relative;
         }
-
-        /* Confetti animation */
-        .confetti {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: #f0f0f0;
-            position: absolute;
-            animation: confetti-fall 3s linear infinite;
-        }
-
-        @keyframes confetti-fall {
-            0% {
-                transform: translateY(-100vh) rotate(0deg);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(100vh) rotate(720deg);
-                opacity: 0;
-            }
-        }
-
-        .container {
-            text-align: center;
-            padding: 60px 40px;
-            max-width: 1400px;
+        #podium {
+            background: white;
+            border-radius: 32px;
+            padding: 60px 80px;
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.4);
+            max-width: 1800px;
             width: 100%;
         }
-
-        .header {
-            margin-bottom: 80px;
-            animation: fadeInDown 1s ease;
-        }
-
+        .header { text-align: center; margin-bottom: 60px; }
         .header h1 {
-            font-size: 72px;
+            font-size: 56px;
             font-weight: 900;
-            color: white;
-            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
             letter-spacing: -2px;
         }
-
-        .header p {
-            font-size: 28px;
-            color: rgba(255, 255, 255, 0.95);
-            font-weight: 500;
-        }
-
+        .header p { font-size: 22px; color: #666; font-weight: 500; }
         .podium-container {
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
             gap: 40px;
-            perspective: 1000px;
+            margin-bottom: 40px;
         }
-
-        .podium-place {
-            position: relative;
-            animation: slideUp 1s ease;
-        }
-
-        .podium-place.first {
-            animation-delay: 0.2s;
-            order: 2;
-        }
-
-        .podium-place.second {
-            animation-delay: 0.4s;
-            order: 1;
-        }
-
-        .podium-place.third {
-            animation-delay: 0.6s;
-            order: 3;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(100px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
         .winner-card {
-            background: white;
             border-radius: 24px;
-            padding: 40px 30px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.3s ease;
+            padding: 48px 36px;
+            text-align: center;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
         }
-
-        .winner-card:hover {
-            transform: translateY(-10px) scale(1.02);
-        }
-
-        .podium-place.first .winner-card {
-            width: 380px;
+        .winner-card.first {
             background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            transform: scale(1.05);
         }
-
-        .podium-place.second .winner-card {
-            width: 340px;
-            background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
-        }
-
-        .podium-place.third .winner-card {
-            width: 340px;
-            background: linear-gradient(135deg, #cd7f32 0%, #e09551 100%);
-        }
-
-        .medal {
-            font-size: 120px;
-            margin-bottom: 20px;
-            display: inline-block;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-20px);
-            }
-        }
-
+        .winner-card.second { background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); }
+        .winner-card.third { background: linear-gradient(135deg, #cd7f32 0%, #e09551 100%); }
+        .medal { font-size: 100px; margin-bottom: 20px; display: block; }
         .position {
-            font-size: 48px;
-            font-weight: 900;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .podium-place.first .position {
-            color: #b8860b;
-        }
-
-        .podium-place.second .position {
-            color: #6b6b6b;
-        }
-
-        .podium-place.third .position {
-            color: #8b4513;
-        }
-
-        .team-name {
             font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .winner-card.first .position { color: #b8860b; }
+        .winner-card.second .position { color: #6b6b6b; }
+        .winner-card.third .position { color: #8b4513; }
+        .team-name {
+            font-size: 36px;
             font-weight: 800;
             color: #1a1a1a;
-            margin-bottom: 30px;
+            margin-bottom: 32px;
             line-height: 1.2;
         }
-
         .stats {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.4);
             border-radius: 16px;
-            padding: 25px;
-            backdrop-filter: blur(10px);
+            padding: 24px;
         }
-
-        .stat-item {
-            margin: 15px 0;
-        }
-
+        .stat-item { margin: 16px 0; }
         .stat-label {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #333;
             margin-bottom: 8px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
-
-        .stat-value {
-            font-size: 28px;
-            font-weight: 800;
-            color: #1a1a1a;
-        }
-
-        .podium-base {
-            width: 100%;
-            margin-top: 40px;
-            height: 80px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .podium-place.first .podium-base {
-            height: 200px;
-            background: rgba(255, 215, 0, 0.2);
-        }
-
-        .podium-place.second .podium-base {
-            height: 150px;
-            background: rgba(192, 192, 192, 0.2);
-        }
-
-        .podium-place.third .podium-base {
-            height: 120px;
-            background: rgba(205, 127, 50, 0.2);
-        }
-
+        .stat-value { font-size: 26px; font-weight: 800; color: #1a1a1a; }
         .footer {
-            margin-top: 60px;
-            color: white;
-            font-size: 18px;
+            text-align: center;
+            color: #666;
+            font-size: 16px;
             font-weight: 500;
-            opacity: 0.9;
-            animation: fadeInDown 1s ease 1s backwards;
+            padding-top: 32px;
+            border-top: 2px solid #e0e0e0;
         }
-
-        /* Sparkles */
-        .sparkle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: white;
-            border-radius: 50%;
-            animation: sparkle 1.5s infinite;
-        }
-
-        @keyframes sparkle {
-            0%, 100% {
-                opacity: 0;
-                transform: scale(0);
-            }
-            50% {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
+        .footer p { margin: 8px 0; }
         .export-button {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 30px;
+            right: 30px;
             background: white;
             color: #667eea;
-            border: none;
-            padding: 16px 32px;
+            border: 3px solid #667eea;
+            padding: 18px 36px;
             border-radius: 50px;
             font-size: 18px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
             transition: all 0.3s ease;
             z-index: 1000;
         }
-
         .export-button:hover {
+            background: #667eea;
+            color: white;
             transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-            background: #f0f0f0;
+            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
         }
-
-        .export-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        #progress {
-            position: fixed;
-            top: 90px;
-            right: 20px;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-            display: none;
-            z-index: 999;
-            min-width: 250px;
-        }
-
-        #progress.show {
-            display: block;
-        }
-
-        .progress-text {
-            color: #667eea;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
+        .export-button:disabled { opacity: 0.6; cursor: wait; }
     </style>
 </head>
 <body>
-    <!-- Confetti -->
-    <script>
-        // Generate confetti
-        for (let i = 0; i < 50; i++) {
-            const confetti = document.createElement('div');
-            confetti.className = 'confetti';
-            confetti.style.left = Math.random() * 100 + '%';
-            confetti.style.animationDelay = Math.random() * 3 + 's';
-            confetti.style.background = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A'][Math.floor(Math.random() * 5)];
-            document.body.appendChild(confetti);
-        }
-    </script>
-
-    <div class="container">
+    <button class="export-button" onclick="exportToPNG()" id="exportBtn">
+        📸 Exportar PNG Alta Resolução
+    </button>
+    <div id="podium">
         <div class="header">
             <h1>🏆 PÓDIO DOS VENCEDORES 🏆</h1>
-            <p>Simulação de Métricas de Marketing · ESTGD</p>
+            <p>Simulação de Métricas de Marketing · ESTGD · IPP</p>
         </div>
-
         <div class="podium-container">
-            <!-- 2º Lugar -->
-            <div class="podium-place second">
-                <div class="winner-card">
-                    <div class="medal">🥈</div>
-                    <div class="position">2º Lugar</div>
-                    <div class="team-name">${second.name}</div>
-                    <div class="stats">
-                        <div class="stat-item">
-                            <div class="stat-label">Lucro Acumulado</div>
-                            <div class="stat-value">${this.formatCurrency(second.profit)}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Receita Total</div>
-                            <div class="stat-value">${this.formatCurrency(second.revenue)}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Clientes</div>
-                            <div class="stat-value">${this.formatNumber(second.customers)}</div>
-                        </div>
+            <div class="winner-card first">
+                <div class="medal">🥇</div>
+                <div class="position">1º Lugar</div>
+                <div class="team-name">${first.name}</div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Lucro Acumulado</div>
+                        <div class="stat-value">${this.formatCurrency(first.profit)}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Receita Total</div>
+                        <div class="stat-value">${this.formatCurrency(first.revenue)}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Clientes</div>
+                        <div class="stat-value">${this.formatNumber(first.customers)}</div>
                     </div>
                 </div>
-                <div class="podium-base"></div>
             </div>
-
-            <!-- 1º Lugar -->
-            <div class="podium-place first">
-                <div class="winner-card">
-                    <div class="medal">🥇</div>
-                    <div class="position">1º Lugar</div>
-                    <div class="team-name">${first.name}</div>
-                    <div class="stats">
-                        <div class="stat-item">
-                            <div class="stat-label">Lucro Acumulado</div>
-                            <div class="stat-value">${this.formatCurrency(first.profit)}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Receita Total</div>
-                            <div class="stat-value">${this.formatCurrency(first.revenue)}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Clientes</div>
-                            <div class="stat-value">${this.formatNumber(first.customers)}</div>
-                        </div>
+            <div class="winner-card second">
+                <div class="medal">🥈</div>
+                <div class="position">2º Lugar</div>
+                <div class="team-name">${second.name}</div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Lucro Acumulado</div>
+                        <div class="stat-value">${this.formatCurrency(second.profit)}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Receita Total</div>
+                        <div class="stat-value">${this.formatCurrency(second.revenue)}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Clientes</div>
+                        <div class="stat-value">${this.formatNumber(second.customers)}</div>
                     </div>
                 </div>
-                <div class="podium-base"></div>
             </div>
-
-            <!-- 3º Lugar -->
-            <div class="podium-place third">
-                <div class="winner-card">
-                    <div class="medal">🥉</div>
-                    <div class="position">3º Lugar</div>
-                    <div class="team-name">${third.name}</div>
-                    <div class="stats">
-                        <div class="stat-item">
-                            <div class="stat-label">Lucro Acumulado</div>
-                            <div class="stat-value">${this.formatCurrency(third.profit)}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Receita Total</div>
-                            <div class="stat-value">${this.formatCurrency(third.revenue)}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Clientes</div>
-                            <div class="stat-value">${this.formatNumber(third.customers)}</div>
-                        </div>
+            <div class="winner-card third">
+                <div class="medal">🥉</div>
+                <div class="position">3º Lugar</div>
+                <div class="team-name">${third.name}</div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Lucro Acumulado</div>
+                        <div class="stat-value">${this.formatCurrency(third.profit)}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Receita Total</div>
+                        <div class="stat-value">${this.formatCurrency(third.revenue)}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Clientes</div>
+                        <div class="stat-value">${this.formatNumber(third.customers)}</div>
                     </div>
                 </div>
-                <div class="podium-base"></div>
             </div>
         </div>
-
         <div class="footer">
             <p>🎓 Parabéns a todas as equipas pelo excelente trabalho! 🎓</p>
-            <p style="margin-top: 10px; font-size: 16px; opacity: 0.8;">Instituto Politécnico de Portalegre · ${new Date().getFullYear()}</p>
+            <p>Instituto Politécnico de Portalegre · ${year}</p>
         </div>
     </div>
-
-    <!-- Botão de Exportar GIF -->
-    <button class="export-button" onclick="exportToGif()" id="exportBtn">
-        🎬 Exportar como GIF
-    </button>
-
-    <!-- Progress Indicator -->
-    <div id="progress">
-        <div class="progress-text">A gerar GIF animado...</div>
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <div style="margin-top: 10px; font-size: 12px; color: #666;" id="progressText">Frame 0/30</div>
-    </div>
-
     <script>
-        async function exportToGif() {
+        async function exportToPNG() {
             const btn = document.getElementById('exportBtn');
-            const progress = document.getElementById('progress');
-            const progressFill = document.getElementById('progressFill');
-            const progressText = document.getElementById('progressText');
-
             btn.disabled = true;
-            btn.textContent = '⏳ A gerar...';
-            progress.classList.add('show');
-
+            btn.textContent = '⏳ A gerar PNG...';
             try {
-                const frames = [];
-                const totalFrames = 25; // 2.5 segundos
-                const delay = 100; // 100ms por frame = 10 FPS
-
-                // Capturar frames
-                for (let i = 0; i < totalFrames; i++) {
-                    progressFill.style.width = ((i / totalFrames) * 100) + '%';
-                    progressText.textContent = \`Frame \${i + 1}/\${totalFrames}\`;
-
-                    const canvas = await html2canvas(document.body, {
-                        scale: 1.2,
-                        backgroundColor: null,
-                        logging: false,
-                        windowWidth: 1400,
-                        windowHeight: 900
-                    });
-
-                    // Converter canvas para imagem base64
-                    frames.push(canvas.toDataURL('image/png'));
-
-                    // Esperar um pouco para capturar animação
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-
-                progressText.textContent = 'A processar GIF...';
-                progressFill.style.width = '100%';
-
-                // Criar GIF usando gifshot
-                gifshot.createGIF({
-                    images: frames,
-                    gifWidth: 1400,
-                    gifHeight: 900,
-                    interval: 0.1, // 10 FPS
-                    numFrames: totalFrames,
-                    frameDuration: 10,
-                    sampleInterval: 10,
-                    numWorkers: 2
-                }, function(obj) {
-                    if (!obj.error) {
-                        // Download
-                        const link = document.createElement('a');
-                        link.href = obj.image;
-                        link.download = 'Podio_Vencedores_${new Date().toISOString().slice(0, 10)}.gif';
-                        link.click();
-
-                        // Reset
-                        btn.disabled = false;
-                        btn.textContent = '🎬 Exportar como GIF';
-                        progress.classList.remove('show');
-                        progressFill.style.width = '0%';
-
-                        alert('✅ GIF gerado com sucesso!\\n\\nO ficheiro foi descarregado. Pode anexá-lo diretamente ao email!');
-                    } else {
-                        throw new Error(obj.error);
-                    }
+                btn.style.display = 'none';
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const podium = document.getElementById('podium');
+                const canvas = await html2canvas(podium, {
+                    scale: 4,
+                    backgroundColor: null,
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true
                 });
-
+                canvas.toBlob(function(blob) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'Podio_Vencedores_${timestamp}.png';
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                    btn.style.display = 'block';
+                    btn.disabled = false;
+                    btn.textContent = '📸 Exportar PNG Alta Resolução';
+                    alert('✅ PNG gerado com sucesso!\\\\n\\\\nQualidade: Ultra HD (4K)\\\\nO ficheiro foi descarregado e está pronto para anexar ao email!');
+                }, 'image/png', 1.0);
             } catch (error) {
-                console.error('Erro ao gerar GIF:', error);
-                alert('❌ Erro ao gerar GIF: ' + error.message + '\\n\\nPor favor tente novamente.');
+                console.error('Erro ao gerar PNG:', error);
+                alert('❌ Erro ao gerar PNG: ' + error.message);
+                btn.style.display = 'block';
                 btn.disabled = false;
-                btn.textContent = '🎬 Exportar como GIF';
-                progress.classList.remove('show');
-                progressFill.style.width = '0%';
+                btn.textContent = '📸 Exportar PNG Alta Resolução';
             }
         }
     </script>

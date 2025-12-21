@@ -33,9 +33,9 @@ const CONFIG = {
             economic: { demand: 0.82, price: 0.96, churn: 1.12 }
         },
         2: { // Q2 (Abr-Jun): Primavera, vendas reduzidas
-            premium: { demand: 0.70, price: 1.00, churn: 1.00 },
-            midrange: { demand: 0.70, price: 1.00, churn: 1.00 },
-            economic: { demand: 0.70, price: 1.00, churn: 1.00 }
+            premium: { demand: 0.60, price: 1.00, churn: 1.00 },
+            midrange: { demand: 0.60, price: 1.00, churn: 1.00 },
+            economic: { demand: 0.60, price: 1.00, churn: 1.00 }
         },
         3: { // Q3 (Jul-Set): Verão, vendas moderadas
             premium: { demand: 0.94, price: 1.00, churn: 0.98 },
